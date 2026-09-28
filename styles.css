@@ -107,7 +107,7 @@ textarea{min-height:100px;resize:vertical}
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 .app-shell{display:grid;grid-template-columns:250px minmax(0,1fr);gap:18px}
-.sidebar{position:sticky;top:18px;height:max-content;padding:15px}
+.sidebar{position:sticky;top:18px;height:max-content;max-height:calc(100vh - 36px);overflow:auto;padding:15px}
 .sidebar-head{padding:4px 5px 14px;border-bottom:1px solid var(--border);margin-bottom:12px}
 .sidebar-head strong{display:block;font-size:16px;margin-top:4px}
 .nav{display:grid;gap:6px}
@@ -123,7 +123,7 @@ textarea{min-height:100px;resize:vertical}
 .page-head h2{font-size:28px;margin:0;letter-spacing:-.035em}
 .page-head p{margin:4px 0 0;color:var(--muted)}
 .actions-row{display:flex;gap:8px;flex-wrap:wrap}
-.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px}
 .metric{padding:17px}
 .metric b{display:block;font-size:29px;line-height:1.05;letter-spacing:-.04em}
 .metric span{display:block;color:var(--muted);font-size:12px;margin-top:5px}
@@ -206,6 +206,19 @@ dialog::backdrop{background:rgba(0,0,0,.72);backdrop-filter:blur(3px)}
 }
 .message-cell{max-width:420px}
 .message-preview{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+
+.finance-metrics{margin-bottom:16px}
+.finance-metrics .metric b{font-size:23px}
+.event.urgent{border-left-color:var(--danger);background:rgba(255,122,122,.045)}
+.event.today{border-left-color:var(--warning)}
+.event.ok{border-left-color:var(--ok)}
+.money-positive{font-weight:800;color:var(--ok)}
+.money-negative{font-weight:800;color:var(--warning)}
+.due-overdue{color:var(--danger);font-weight:750}
+.due-today{color:var(--warning);font-weight:750}
+.row-main{display:grid;gap:2px}
+.row-main .small{max-width:460px}
+
 .onboarding{max-width:650px;margin:50px auto;padding:22px}
 .onboarding h2{margin:0 0 5px}
 .toast-wrap{position:fixed;right:18px;bottom:18px;display:grid;gap:8px;z-index:3000;max-width:min(390px,calc(100vw - 28px))}
