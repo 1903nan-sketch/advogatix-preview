@@ -123,6 +123,7 @@
             <button data-section="tasks">Tarefas</button>
             <button data-section="finance">Financeiro</button>
             <button data-section="documents">Documentos</button>
+            <button data-section="templates">Modelos</button>
             <button data-section="crm">CRM</button>
             <button data-section="reports">Relatórios</button>
             <button data-section="movements">Movimentações</button>
@@ -452,6 +453,39 @@
             </div>
           </section>
 
+
+          <section id="section-templates" class="section">
+            <div class="page-head">
+              <div>
+                <h2>Modelos do escritório</h2>
+                <p>Textos reutilizáveis para WhatsApp, e-mail e documentos.</p>
+              </div>
+              <button id="newTemplateBtn" class="btn" type="button">Novo modelo</button>
+            </div>
+
+            <div class="toolbar">
+              <div class="filters">
+                <div class="search"><input id="templateSearch" type="search" placeholder="Buscar modelo ou categoria" /></div>
+                <select id="templateFilter">
+                  <option value="all">Todos</option>
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="email">E-mail</option>
+                  <option value="document">Documento</option>
+                </select>
+              </div>
+              <span id="templateCount" class="small"></span>
+            </div>
+
+            <div class="card table-card">
+              <div class="tablewrap">
+                <table>
+                  <thead><tr><th>Modelo</th><th>Tipo</th><th>Categoria</th><th>Status</th><th>Prévia</th><th></th></tr></thead>
+                  <tbody id="templatesBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
           <section id="section-crm" class="section">
             <div class="page-head">
               <div>
@@ -728,6 +762,14 @@
           <input id="cPixKey" autocomplete="off" placeholder="CPF, telefone, e-mail ou chave aleatória" />
         </div>
 
+        <div>
+          <label for="cTags">Tags</label>
+          <input id="cTags" placeholder="urgente, trabalhista, acordo" />
+        </div>
+        <div>
+          <label for="cFavorite">Favorito</label>
+          <select id="cFavorite"><option value="false">Não</option><option value="true">Sim</option></select>
+        </div>
         <div class="full">
           <label for="cNotes">Observações internas</label>
           <textarea id="cNotes" placeholder="Informações internas do escritório"></textarea>
@@ -831,6 +873,14 @@
             <option value="archived">Arquivado</option>
           </select>
         </div>
+        <div>
+          <label for="caseTags">Tags</label>
+          <input id="caseTags" placeholder="urgente, perícia, recurso" />
+        </div>
+        <div>
+          <label for="caseFavorite">Favorito</label>
+          <select id="caseFavorite"><option value="false">Não</option><option value="true">Sim</option></select>
+        </div>
         <div class="full">
           <label for="caseSummary">Resumo interno</label>
           <textarea id="caseSummary" placeholder="Resumo do processo para consulta rápida"></textarea>
@@ -847,6 +897,26 @@
 
 
 
+
+
+  <dialog id="templateDialog">
+    <form id="templateForm" class="modal">
+      <div class="modal-head">
+        <div><h3 id="templateDialogTitle">Novo modelo</h3><p>Crie textos reutilizáveis pelo escritório.</p></div>
+        <button class="btn ghost close-x" type="button" data-close>×</button>
+      </div>
+      <div class="modal-grid">
+        <div class="full"><label for="templateTitle">Nome do modelo</label><input id="templateTitle" required placeholder="Ex.: Confirmação de audiência" /></div>
+        <div><label for="templateType">Tipo</label><select id="templateType"><option value="whatsapp">WhatsApp</option><option value="email">E-mail</option><option value="document">Documento</option></select></div>
+        <div><label for="templateCategory">Categoria</label><input id="templateCategory" placeholder="Audiência, financeiro, contrato..." /></div>
+        <div><label for="templateActive">Ativo</label><select id="templateActive"><option value="true">Sim</option><option value="false">Não</option></select></div>
+        <div class="full"><label for="templateContent">Conteúdo</label><textarea id="templateContent" required style="min-height:220px" placeholder="Escreva o texto do modelo"></textarea></div>
+      </div>
+      <div class="notice" style="margin-top:12px">Você pode usar textos genéricos e adaptar antes de enviar. O AdvogaTix não envia modelos automaticamente.</div>
+      <div class="modal-actions"><button class="btn secondary" type="button" data-close>Cancelar</button><button id="templateSaveBtn" class="btn">Salvar modelo</button></div>
+      <div id="templateStatusMsg" class="status"></div>
+    </form>
+  </dialog>
 
   <dialog id="documentDialog">
     <form id="documentForm" class="modal">
