@@ -19,6 +19,7 @@
     calendarEvents: [],
     financialEntries: [],
     documents: [],
+    templates: [],
     leads: [],
     clientInteractions: [],
     checklistItems: [],
@@ -294,6 +295,8 @@
       $("#cAddress").value = client.address_line || "";
       $("#cCity").value = client.city || "";
       $("#cStateCode").value = client.state_code || "";
+      $("#cTags").value = Array.isArray(client.tags) ? client.tags.join(", ") : "";
+      $("#cFavorite").value = client.is_favorite ? "true" : "false";
       $("#cBankName").value = client.bank_name || "";
       $("#cBankBranch").value = client.bank_branch || "";
       $("#cBankAccount").value = client.bank_account || "";
@@ -325,6 +328,8 @@
       address_line: $("#cAddress").value.trim() || null,
       city: $("#cCity").value.trim() || null,
       state_code: $("#cStateCode").value.trim().toUpperCase() || null,
+      tags: $("#cTags").value.split(",").map((x) => x.trim()).filter(Boolean),
+      is_favorite: $("#cFavorite").value === "true",
       bank_name: $("#cBankName").value.trim() || null,
       bank_branch: $("#cBankBranch").value.trim() || null,
       bank_account: $("#cBankAccount").value.trim() || null,
@@ -396,6 +401,8 @@
       $("#caseLegalArea").value = item.legal_area || "";
       $("#caseValue").value = item.case_value ?? "";
       $("#casePriority").value = item.priority || "normal";
+      $("#caseTags").value = Array.isArray(item.tags) ? item.tags.join(", ") : "";
+      $("#caseFavorite").value = item.is_favorite ? "true" : "false";
       $("#caseHearing").value = toLocalInput(item.hearing_at);
       $("#caseHearingMode").value = item.hearing_mode || "";
       $("#caseStatus").value = item.status || "in_progress";
@@ -403,6 +410,7 @@
     } else {
       $("#caseStatus").value = "in_progress";
       $("#casePriority").value = "normal";
+      $("#caseFavorite").value = "false";
     }
 
     openDialog("caseDialog");
@@ -426,6 +434,8 @@
       legal_area: $("#caseLegalArea").value.trim() || null,
       case_value: $("#caseValue").value ? Number($("#caseValue").value) : null,
       priority: $("#casePriority").value || "normal",
+      tags: $("#caseTags").value.split(",").map((x) => x.trim()).filter(Boolean),
+      is_favorite: $("#caseFavorite").value === "true",
       hearing_at: toIso($("#caseHearing").value),
       hearing_mode: $("#caseHearingMode").value || null,
       status: $("#caseStatus").value,
@@ -851,7 +861,7 @@
     const status = $("#clientFilter").value;
     const list = state.clients.filter((c) => {
       const matchesStatus = status === "all" || c.status === status;
-      const haystack = norm(`${c.full_name} ${c.email} ${c.phone} ${c.referred_by} ${c.cpf_cnpj} ${c.city}`);
+      const haystack = norm(`${c.full_name} ${c.email} ${c.phone} ${c.referred_by} ${c.cpf_cnpj} ${c.city} ${(c.tags || []).join(" ")}`);
       return matchesStatus && haystack.includes(query);
     });
 
@@ -859,7 +869,7 @@
     $("#clientsBody").innerHTML = list.length
       ? list.map((c) => `
           <tr>
-            <td><strong>${esc(c.full_name)}</strong><div class="small">${esc(c.cpf_cnpj || c.notes || "")}</div></td>
+            <td><strong>${c.is_favorite ? "★ " : ""}${esc(c.full_name)}</strong><div class="small">${esc(c.cpf_cnpj || (c.tags || []).join(" • ") || c.notes || "")}</div></td>
             <td>${esc(c.phone || "—")}</td>
             <td>${esc(c.email || "—")}</td>
             <td>${esc(c.referred_by || "—")}</td>
@@ -884,7 +894,7 @@
     const list = state.cases.filter((c) => {
       const client = clientById(c.client_id);
       const matchesStatus = status === "all" || c.status === status;
-      const haystack = norm(`${c.title} ${c.process_number} ${c.claimant} ${c.defendant} ${c.forum} ${c.court_division} ${c.legal_area} ${client?.full_name}`);
+      const haystack = norm(`${c.title} ${c.process_number} ${c.claimant} ${c.defendant} ${c.forum} ${c.court_division} ${c.legal_area} ${(c.tags || []).join(" ")} ${client?.full_name}`);
       return matchesStatus && haystack.includes(query);
     });
 
@@ -896,7 +906,7 @@
           const statusType = c.status === "in_progress" ? "ok" : ["closed", "archived"].includes(c.status) ? "" : "warn";
           return `
             <tr>
-              <td><strong>${esc(c.title)}</strong><div class="small">${esc(c.process_number || "Sem número")}</div></td>
+              <td><strong>${c.is_favorite ? "★ " : ""}${esc(c.title)}</strong><div class="small">${esc(c.process_number || "Sem número")}</div></td>
               <td>${esc(client?.full_name || "—")}</td>
               <td><div>${esc(parties || "—")}</div><div class="small">${esc([c.forum, c.court_division].filter(Boolean).join(" • "))}</div></td>
               <td>${c.hearing_at ? `<strong>${brDate(c.hearing_at)}</strong><div class="small">${esc(modeLabels[c.hearing_mode] || "")}</div>` : "—"}</td>
