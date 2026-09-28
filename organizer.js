@@ -645,6 +645,86 @@
 
 
 
+
+  const templateTypeLabels = { whatsapp: "WhatsApp", email: "E-mail", document: "Documento" };
+
+  function openTemplateDialog(id = null) {
+    state.editingTemplateId = id;
+    $("#templateForm").reset();
+    setStatus($("#templateStatusMsg"));
+    const item = id ? state.templates.find((x) => x.id === id) : null;
+    $("#templateDialogTitle").textContent = item ? "Editar modelo" : "Novo modelo";
+    $("#templateSaveBtn").textContent = item ? "Salvar alterações" : "Salvar modelo";
+    $("#templateType").value = item?.template_type || "whatsapp";
+    $("#templateActive").value = item?.active === false ? "false" : "true";
+    if (item) {
+      $("#templateTitle").value = item.title || "";
+      $("#templateCategory").value = item.category || "";
+      $("#templateContent").value = item.content || "";
+    }
+    openDialog("templateDialog");
+  }
+
+  $("#templateForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = event.submitter;
+    setBusy(button, true, "Salvando");
+    const payload = {
+      template_type: $("#templateType").value,
+      title: $("#templateTitle").value.trim(),
+      category: $("#templateCategory").value.trim() || null,
+      content: $("#templateContent").value.trim(),
+      active: $("#templateActive").value === "true"
+    };
+    try {
+      if (state.editingTemplateId) {
+        const { error } = await supabase.from("office_templates").update(payload)
+          .eq("id", state.editingTemplateId).eq("firm_id", state.firm.id);
+        if (error) throw error;
+        toast("Modelo atualizado.");
+      } else {
+        const { error } = await supabase.from("office_templates").insert({
+          ...payload, firm_id: state.firm.id, created_by: state.user.id
+        });
+        if (error) throw error;
+        toast("Modelo criado.");
+      }
+      closeDialog("templateDialog");
+      await core.loadData();
+    } catch (error) {
+      setStatus($("#templateStatusMsg"), error.message || "Não foi possível salvar o modelo.", "err");
+    } finally {
+      setBusy(button, false);
+    }
+  });
+
+  function renderTemplates() {
+    const target = $("#templatesBody");
+    if (!target) return;
+    const q = norm($("#templateSearch")?.value || "");
+    const filter = $("#templateFilter")?.value || "all";
+    const list = state.templates.filter((item) => {
+      const matchesType = filter === "all" || item.template_type === filter;
+      const matchesSearch = norm((item.title || "") + " " + (item.category || "") + " " + (item.content || "")).includes(q);
+      return matchesType && matchesSearch;
+    });
+
+    $("#templateCount").textContent = list.length + " de " + state.templates.length;
+    target.innerHTML = list.length ? list.map((item) => {
+      const preview = String(item.content || "").replace(/\s+/g, " ").slice(0, 90);
+      return '<tr>' +
+        '<td><strong>' + esc(item.title) + '</strong></td>' +
+        '<td>' + esc(templateTypeLabels[item.template_type] || item.template_type) + '</td>' +
+        '<td>' + esc(item.category || "—") + '</td>' +
+        '<td>' + badge(item.active ? "Ativo" : "Inativo", item.active ? "ok" : "") + '</td>' +
+        '<td class="message-cell"><div class="message-preview">' + esc(preview) + '</div></td>' +
+        '<td><div class="row-actions"><button class="btn secondary sm" data-edit-template="' + item.id + '">Editar</button></div></td>' +
+      '</tr>';
+    }).join("") : '<tr><td colspan="6" class="empty">Nenhum modelo encontrado.</td></tr>';
+
+    $("[data-edit-template]").forEach((b) => b.addEventListener("click", () => openTemplateDialog(b.dataset.editTemplate)));
+  }
+
   function formatBytes(bytes) {
     const value = Number(bytes || 0);
     if (!value) return "—";
@@ -1151,6 +1231,7 @@
     renderAgenda();
     renderFinance();
     renderDocuments();
+    renderTemplates();
     renderLeads();
     renderToday();
     renderCaseHealthBadges();
@@ -1162,23 +1243,25 @@
   }
 
   async function loadData(firmId) {
-    const [deadlines, tasks, events, finance, documents, leads, interactions, checklist] = await Promise.all([
+    const [deadlines, tasks, events, finance, documents, templates, leads, interactions, checklist] = await Promise.all([
       supabase.from("deadlines").select("*").eq("firm_id", firmId).order("due_at", { ascending: true }),
       supabase.from("tasks").select("*").eq("firm_id", firmId).order("due_at", { ascending: true, nullsFirst: false }),
       supabase.from("calendar_events").select("*").eq("firm_id", firmId).order("start_at", { ascending: true }),
       supabase.from("financial_entries").select("*").eq("firm_id", firmId).order("created_at", { ascending: false }),
       supabase.from("documents").select("*").eq("firm_id", firmId).order("created_at", { ascending: false }),
+      supabase.from("office_templates").select("*").eq("firm_id", firmId).order("updated_at", { ascending: false }),
       supabase.from("crm_leads").select("*").eq("firm_id", firmId).order("updated_at", { ascending: false }),
       supabase.from("client_interactions").select("*").eq("firm_id", firmId).order("occurred_at", { ascending: false }),
       supabase.from("case_checklist_items").select("*").eq("firm_id", firmId).order("created_at", { ascending: true })
     ]);
-    const errors = [deadlines.error, tasks.error, events.error, finance.error, documents.error, leads.error, interactions.error, checklist.error].filter(Boolean);
+    const errors = [deadlines.error, tasks.error, events.error, finance.error, documents.error, templates.error, leads.error, interactions.error, checklist.error].filter(Boolean);
     if (errors.length) throw errors[0];
     state.deadlines = deadlines.data || [];
     state.tasks = tasks.data || [];
     state.calendarEvents = events.data || [];
     state.financialEntries = finance.data || [];
     state.documents = documents.data || [];
+    state.templates = templates.data || [];
     state.leads = leads.data || [];
     state.clientInteractions = interactions.data || [];
     state.checklistItems = checklist.data || [];
@@ -1191,6 +1274,7 @@
   $("#newEventBtn")?.addEventListener("click", () => openEventDialog());
   $("#newFinanceBtn")?.addEventListener("click", () => openFinanceDialog());
   $("#newDocumentBtn")?.addEventListener("click", () => openDocumentDialog());
+  $("#newTemplateBtn")?.addEventListener("click", () => openTemplateDialog());
   $("#newLeadBtn")?.addEventListener("click", () => openLeadDialog());
 
   ["deadlineSearch","deadlineFilter"].forEach((id) => $("#" + id)?.addEventListener("input", renderDeadlines));
@@ -1198,6 +1282,7 @@
   $("#agendaFilter")?.addEventListener("input", renderAgenda);
   ["financeSearch","financeFilter"].forEach((id) => $("#" + id)?.addEventListener("input", renderFinance));
   ["documentSearch","documentTypeFilter"].forEach((id) => $("#" + id)?.addEventListener("input", renderDocuments));
+  ["templateSearch","templateFilter"].forEach((id) => $("#" + id)?.addEventListener("input", renderTemplates));
   ["leadSearch","leadFilter"].forEach((id) => $("#" + id)?.addEventListener("input", renderLeads));
   $("#globalSearch")?.addEventListener("input", renderGlobalSearch);
   $("#globalSearch")?.addEventListener("focus", renderGlobalSearch);
