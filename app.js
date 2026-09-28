@@ -18,6 +18,7 @@
     tasks: [],
     calendarEvents: [],
     financialEntries: [],
+    documents: [],
     leads: [],
     clientInteractions: [],
     checklistItems: [],
