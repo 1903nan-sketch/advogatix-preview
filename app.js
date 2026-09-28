@@ -270,6 +270,10 @@
       $("#cEmail").value = client.email || "";
       $("#cPhone").value = client.phone || "";
       $("#cReferred").value = client.referred_by || "";
+      $("#cBankName").value = client.bank_name || "";
+      $("#cBankBranch").value = client.bank_branch || "";
+      $("#cBankAccount").value = client.bank_account || "";
+      $("#cPixKey").value = client.pix_key || "";
       $("#cNotes").value = client.notes || "";
       $("#cStatus").value = client.status || "active";
     } else {
@@ -288,6 +292,10 @@
       email: $("#cEmail").value.trim() || null,
       phone: $("#cPhone").value.trim() || null,
       referred_by: $("#cReferred").value.trim() || null,
+      bank_name: $("#cBankName").value.trim() || null,
+      bank_branch: $("#cBankBranch").value.trim() || null,
+      bank_account: $("#cBankAccount").value.trim() || null,
+      pix_key: $("#cPixKey").value.trim() || null,
       notes: $("#cNotes").value.trim() || null,
       status: $("#cStatus").value,
       portal_enabled: false,
