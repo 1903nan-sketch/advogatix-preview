@@ -1,7 +1,53 @@
 (() => {
+  // Registrado antes de tudo para funcionar mesmo se o restante do script falhar.
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
+  }
+
   const SUPABASE_URL = "https://llxquroiaehemebuikwg.supabase.co";
   const SUPABASE_KEY = "sb_publishable_JYxa0dZA0VkJEVuQUoXT5w_j0XamP_q";
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // Este preview usa o mesmo Supabase da produção. Enquanto não houver um banco
+  // separado para o preview, todas as gravações, uploads, exclusões e chamadas
+  // de Edge Functions (inclusive envio de WhatsApp) ficam bloqueadas aqui.
+  const PREVIEW_READ_ONLY = true;
+  const PREVIEW_MESSAGE = "Modo preview (somente leitura): nenhuma alteração é gravada nos dados reais.";
+  const TIME_ZONE = "America/Sao_Paulo";
+
+  const rawSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const supabase = PREVIEW_READ_ONLY ? readOnlyClient(rawSupabase) : rawSupabase;
+
+  function blockedResult() {
+    const result = Promise.resolve({ data: null, error: new Error(PREVIEW_MESSAGE) });
+    const chain = new Proxy(function () {}, {
+      get(_target, prop) {
+        if (prop === "then") return result.then.bind(result);
+        if (prop === "catch") return result.catch.bind(result);
+        if (prop === "finally") return result.finally.bind(result);
+        return () => chain;
+      },
+    });
+    return chain;
+  }
+
+  function readOnlyClient(client) {
+    const tableWrites = new Set(["insert", "update", "upsert", "delete"]);
+    const storageWrites = new Set(["upload", "update", "remove", "move", "copy", "uploadToSignedUrl", "createSignedUploadUrl"]);
+    const guard = (target, blocked) => new Proxy(target, {
+      get(obj, prop) {
+        if (blocked.has(prop)) return () => blockedResult();
+        const value = obj[prop];
+        return typeof value === "function" ? value.bind(obj) : value;
+      },
+    });
+    return {
+      auth: client.auth,
+      from: (table) => guard(client.from(table), tableWrites),
+      rpc: () => blockedResult(),
+      storage: { from: (bucket) => guard(client.storage.from(bucket), storageWrites) },
+      functions: { invoke: async () => ({ data: null, error: new Error(PREVIEW_MESSAGE) }) },
+    };
+  }
 
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
@@ -34,6 +80,7 @@
     editingEventId: null,
     editingFinanceId: null,
     editingLeadId: null,
+    editingTemplateId: null,
   };
 
   const statusLabels = {
@@ -81,7 +128,7 @@
     if (!value) return "—";
     try {
       return new Intl.DateTimeFormat("pt-BR", {
-        timeZone: "America/Sao_Paulo",
+        timeZone: TIME_ZONE,
         dateStyle: "short",
         timeStyle: "short",
       }).format(new Date(value));
@@ -90,15 +137,50 @@
     }
   }
 
+  // Datas e horas são sempre digitadas e exibidas no horário de Brasília,
+  // independentemente do fuso configurado no aparelho.
+  const zonedFormatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: TIME_ZONE, hourCycle: "h23",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
+
+  function zonedParts(date) {
+    const parts = {};
+    zonedFormatter.formatToParts(date).forEach((p) => { parts[p.type] = p.value; });
+    return parts;
+  }
+
+  function zoneOffsetMs(date) {
+    const p = zonedParts(date);
+    return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - Math.floor(date.getTime() / 1000) * 1000;
+  }
+
   function toIso(value) {
-    return value ? new Date(value).toISOString() : null;
+    if (!value) return null;
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
+    if (!m) {
+      const d = new Date(value);
+      return Number.isNaN(d.getTime()) ? null : d.toISOString();
+    }
+    const asUtc = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+    return new Date(asUtc - zoneOffsetMs(new Date(asUtc))).toISOString();
   }
 
   function toLocalInput(value) {
     if (!value) return "";
     const d = new Date(value);
-    const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    if (Number.isNaN(d.getTime())) return "";
+    const p = zonedParts(d);
+    return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+  }
+
+  function dateKey(value) {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    const p = zonedParts(d);
+    return `${p.year}-${p.month}-${p.day}`;
   }
 
   function toast(message, type = "ok") {
@@ -163,6 +245,7 @@
   }
 
   async function invokeWhatsapp(body) {
+    if (PREVIEW_READ_ONLY) throw new Error(PREVIEW_MESSAGE);
     const { data, error } = await supabase.functions.invoke("whatsapp", { body });
     if (!error) return data;
 
@@ -203,7 +286,7 @@
     } catch (error) {
       const message = String(error?.message || "");
       const friendly = /invalid login credentials/i.test(message)
-        ? "E-mail ou senha inválidos. Verifique se o usuário foi criado em Authentication > Users no Supabase."
+        ? "E-mail ou senha inválidos."
         : (message || "Não foi possível entrar.");
       setStatus($("#authStatus"), friendly, "err");
     } finally {
@@ -272,7 +355,7 @@
   $("#newCaseBtn").addEventListener("click", () => openCaseDialog());
   $("#newMovementBtn").addEventListener("click", () => openMovementDialog());
 
-  function openClientDialog(clientId = null) {
+  function openClientDialog(clientId = null, prefill = null) {
     state.editingClientId = clientId;
     $("#clientForm").reset();
     setStatus($("#clientStatus"));
@@ -305,6 +388,12 @@
       $("#cStatus").value = client.status || "active";
     } else {
       $("#cStatus").value = "active";
+      if (prefill) {
+        $("#cName").value = prefill.full_name || "";
+        $("#cPhone").value = prefill.phone || "";
+        $("#cEmail").value = prefill.email || "";
+        $("#cNotes").value = prefill.notes || "";
+      }
     }
     openDialog("clientDialog");
   }
@@ -369,7 +458,7 @@
   function fillClientSelect(selected = "") {
     $("#caseClient").innerHTML = state.clients
       .filter((c) => c.status === "active" || c.id === selected)
-      .map((c) => `<option value="${c.id}" ${c.id === selected ? "selected" : ""}>${esc(c.full_name)}</option>`)
+      .map((c) => `<option value="${esc(c.id)}" ${c.id === selected ? "selected" : ""}>${esc(c.full_name)}</option>`)
       .join("");
   }
 
@@ -475,7 +564,7 @@
       .map((c) => {
         const client = clientById(c.client_id);
         const number = c.process_number ? ` — ${c.process_number}` : "";
-        return `<option value="${c.id}" ${c.id === selected ? "selected" : ""}>${esc(client?.full_name || "Cliente")} — ${esc(c.title)}${esc(number)}</option>`;
+        return `<option value="${esc(c.id)}" ${c.id === selected ? "selected" : ""}>${esc(client?.full_name || "Cliente")} — ${esc(c.title)}${esc(number)}</option>`;
       })
       .join("");
   }
@@ -732,6 +821,16 @@
     const text = $("#integrationStateText");
     const info = $("#waConnectedInfo");
 
+    if (PREVIEW_READ_ONLY) {
+      box.classList.remove("connected");
+      text.textContent = "Integração desativada no preview";
+      info.classList.add("hidden");
+      $("#waConnectBtn").disabled = true;
+      $("#waRefreshBtn").disabled = true;
+      setStatus($("#waStatus"), "O preview não consulta nem envia mensagens de WhatsApp.");
+      return;
+    }
+
     try {
       const data = await invokeWhatsapp({ action: "status", firm_id: state.firm.id });
       state.whatsapp = data || state.whatsapp;
@@ -838,19 +937,32 @@
         }).join("")
       : '<div class="empty">Nenhuma movimentação cadastrada.</div>';
 
-    const nextHearings = state.cases
-      .filter((c) => c.hearing_at && new Date(c.hearing_at) >= new Date())
-      .sort((a, b) => new Date(a.hearing_at) - new Date(b.hearing_at))
-      .slice(0, 5);
+    // Audiências vêm tanto da ficha do processo quanto da agenda jurídica.
+    const now = Date.now();
+    const hearings = [];
+    const seen = new Set();
+    const addHearing = (caseId, clientId, at, mode, title) => {
+      if (!at || new Date(at).getTime() < now) return;
+      const key = (caseId || title) + "|" + new Date(at).getTime();
+      if (seen.has(key)) return;
+      seen.add(key);
+      hearings.push({ caseId, clientId, at, mode, title });
+    };
+    state.cases.forEach((c) => addHearing(c.id, c.client_id, c.hearing_at, c.hearing_mode, c.title));
+    (state.calendarEvents || [])
+      .filter((e) => e.event_type === "hearing")
+      .forEach((e) => addHearing(e.case_id, e.client_id || caseById(e.case_id)?.client_id, e.start_at, e.modality, e.title));
+    const nextHearings = hearings.sort((a, b) => new Date(a.at) - new Date(b.at)).slice(0, 5);
 
     $("#nextHearings").innerHTML = nextHearings.length
-      ? nextHearings.map((c) => {
-          const client = clientById(c.client_id);
+      ? nextHearings.map((h) => {
+          const item = caseById(h.caseId);
+          const client = clientById(h.clientId);
           return `
             <div class="event">
-              <strong>${esc(client?.full_name || c.title)}</strong>
-              <small>${brDate(c.hearing_at)} • ${esc(modeLabels[c.hearing_mode] || "Modalidade não informada")}</small>
-              <p>${esc(c.process_number || c.title)}</p>
+              <strong>${esc(client?.full_name || h.title)}</strong>
+              <small>${brDate(h.at)} • ${esc(modeLabels[h.mode] || "Modalidade não informada")}</small>
+              <p>${esc(item?.process_number || item?.title || h.title)}</p>
             </div>`;
         }).join("")
       : '<div class="empty">Nenhuma audiência futura cadastrada.</div>';
@@ -876,16 +988,12 @@
             <td>${badge(c.status === "active" ? "Ativo" : "Inativo", c.status === "active" ? "ok" : "")}</td>
             <td>
               <div class="row-actions">
-                <button class="btn ghost sm" data-client-file="${c.id}">Ficha</button>
-                <button class="btn secondary sm" data-edit-client="${c.id}">Editar</button>
+                <button class="btn ghost sm" data-client-file="${esc(c.id)}">Ficha</button>
+                <button class="btn secondary sm" data-edit-client="${esc(c.id)}">Editar</button>
               </div>
             </td>
           </tr>`).join("")
       : '<tr><td colspan="6" class="empty">Nenhum cliente encontrado.</td></tr>';
-
-    $$("[data-edit-client]").forEach((btn) => {
-      btn.addEventListener("click", () => openClientDialog(btn.dataset.editClient));
-    });
   }
 
   function renderCases() {
@@ -910,24 +1018,19 @@
               <td>${esc(client?.full_name || "—")}</td>
               <td><div>${esc(parties || "—")}</div><div class="small">${esc([c.forum, c.court_division].filter(Boolean).join(" • "))}</div></td>
               <td>${c.hearing_at ? `<strong>${brDate(c.hearing_at)}</strong><div class="small">${esc(modeLabels[c.hearing_mode] || "")}</div>` : "—"}</td>
-              <td>${badge(statusLabels[c.status] || c.status, statusType)}<div class="small" data-case-health="${c.id}"></div></td>
+              <td>${badge(statusLabels[c.status] || c.status, statusType)}<div class="small" data-case-health="${esc(c.id)}"></div></td>
               <td>
                 <div class="row-actions">
-                  <button class="btn ghost sm" data-case-workspace="${c.id}">Organizar</button>
-                  <button class="btn ghost sm" data-move-case="${c.id}">Movimentar</button>
-                  <button class="btn secondary sm" data-edit-case="${c.id}">Editar</button>
+                  <button class="btn ghost sm" data-case-workspace="${esc(c.id)}">Organizar</button>
+                  <button class="btn ghost sm" data-move-case="${esc(c.id)}">Movimentar</button>
+                  <button class="btn secondary sm" data-edit-case="${esc(c.id)}">Editar</button>
                 </div>
               </td>
             </tr>`;
         }).join("")
       : '<tr><td colspan="6" class="empty">Nenhum processo encontrado.</td></tr>';
 
-    $$("[data-edit-case]").forEach((btn) => {
-      btn.addEventListener("click", () => openCaseDialog(btn.dataset.editCase));
-    });
-    $$("[data-move-case]").forEach((btn) => {
-      btn.addEventListener("click", () => openMovementDialog(btn.dataset.moveCase));
-    });
+    window.AdvogaOrganizer?.renderCaseHealthBadges?.();
   }
 
   function renderUpdates() {
@@ -1011,15 +1114,22 @@
               <td>${badge(statusText, statusType)}</td>
               <td class="message-cell"><div class="message-preview" title="${esc(n.message_body || n.error_message || "")}">${esc(n.message_body || n.error_message || "—")}</div></td>
               <td>${esc(n.provider_message_id || "—")}</td>
-              <td>${canRetry ? `<button class="btn secondary sm" data-retry-update="${n.case_update_id}">Reenviar</button>` : ""}</td>
+              <td>${canRetry ? `<button class="btn secondary sm" data-retry-update="${esc(n.case_update_id)}">Reenviar</button>` : ""}</td>
             </tr>`;
         }).join("")
       : '<tr><td colspan="6" class="empty">Nenhuma mensagem enviada ainda.</td></tr>';
-
-    $("[data-retry-update]").forEach((button) => {
-      button.addEventListener("click", () => retryWhatsapp(button.dataset.retryUpdate, button));
-    });
   }
+
+  // Um único listener para os botões das tabelas: continua funcionando depois
+  // que as linhas são recriadas por busca ou filtro.
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest?.("[data-edit-client],[data-edit-case],[data-move-case],[data-retry-update]");
+    if (!button) return;
+    if (button.dataset.editClient) openClientDialog(button.dataset.editClient);
+    else if (button.dataset.editCase) openCaseDialog(button.dataset.editCase);
+    else if (button.dataset.moveCase) openMovementDialog(button.dataset.moveCase);
+    else if (button.dataset.retryUpdate) retryWhatsapp(button.dataset.retryUpdate, button);
+  });
 
   function renderAll() {
     updateBrand();
@@ -1122,12 +1232,16 @@
     supabase,
     state,
     $,
-    $,
+    $$,
     esc,
     norm,
     brDate,
     toIso,
     toLocalInput,
+    dateKey,
+    TIME_ZONE,
+    PREVIEW_READ_ONLY,
+    PREVIEW_MESSAGE,
     toast,
     setStatus,
     setBusy,
@@ -1137,9 +1251,33 @@
     clientById,
     caseById,
     switchSection,
+    openClientDialog,
     loadData,
     renderAll,
   };
+
+  // No celular as tabelas viram cartões; cada célula recebe o nome da coluna.
+  function labelTableRows(table) {
+    const headers = $$("thead th", table).map((th) => th.textContent.trim());
+    $$("tbody tr", table).forEach((tr) => {
+      Array.from(tr.children).forEach((td, index) => {
+        if (td.hasAttribute("colspan")) return;
+        if (headers[index]) td.dataset.label = headers[index];
+        else td.classList.add("cell-actions");
+      });
+    });
+  }
+
+  $$("table").forEach((table) => {
+    const body = $("tbody", table);
+    if (!body) return;
+    new MutationObserver(() => labelTableRows(table)).observe(body, { childList: true });
+  });
+
+  if (PREVIEW_READ_ONLY) {
+    document.body.classList.add("preview-mode");
+    $("#previewBanner")?.classList.remove("hidden");
+  }
 
   boot().catch((error) => {
     console.error(error);

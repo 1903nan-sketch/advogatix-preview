@@ -1,5 +1,8 @@
-const CACHE = "advogatix-preview-v1";
-const SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./organizer.js", "./manifest.webmanifest", "./icon.svg"];
+const CACHE = "advogatix-preview-v2";
+const SHELL = [
+  "./", "./index.html", "./styles.css", "./app.js", "./organizer.js",
+  "./manifest.webmanifest", "./icon.svg", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png"
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
@@ -13,15 +16,25 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+// Rede primeiro para os arquivos do próprio site; o cache só entra quando estiver offline.
+// Supabase e CDN (outras origens) nunca passam pelo cache.
 self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET" || new URL(event.request.url).origin !== self.location.origin) return;
+  const request = event.request;
+  if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
   event.respondWith(
-    fetch(event.request)
+    fetch(request)
       .then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+        if (response.ok && response.type === "basic") {
+          const copy = response.clone();
+          event.waitUntil(caches.open(CACHE).then((cache) => cache.put(request, copy)));
+        }
         return response;
       })
-      .catch(() => caches.match(event.request).then((cached) => cached || caches.match("./index.html")))
+      .catch(async () => {
+        const cached = await caches.match(request, { ignoreSearch: request.mode === "navigate" });
+        if (cached) return cached;
+        if (request.mode === "navigate") return (await caches.match("./index.html")) || Response.error();
+        return Response.error();
+      })
   );
 });

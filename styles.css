@@ -33,7 +33,18 @@ a{color:inherit}
 .hidden{display:none!important}
 .muted{color:var(--muted)}
 .small{font-size:12px;color:var(--muted)}
-.wrap{max-width:1440px;margin:0 auto;padding:20px}
+.wrap{
+  max-width:1440px;margin:0 auto;padding:20px;
+  padding-left:max(20px,env(safe-area-inset-left));padding-right:max(20px,env(safe-area-inset-right));
+  padding-bottom:max(20px,env(safe-area-inset-bottom));
+}
+.preview-banner{
+  position:sticky;top:0;z-index:2400;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;justify-content:center;
+  padding:8px 14px;padding-top:max(8px,env(safe-area-inset-top));
+  background:#2a2210;border-bottom:1px solid rgba(214,179,106,.45);color:var(--gold-2);font-size:13px;text-align:center;
+}
+.preview-banner span{color:#e7d2a4}
+body:not(.preview-mode) .landing .wrap,body:not(.preview-mode) #app .wrap{padding-top:max(20px,env(safe-area-inset-top))}
 .topbar{
   display:flex;align-items:center;justify-content:space-between;gap:16px;padding:8px 0 22px;
 }
@@ -184,7 +195,7 @@ tbody tr:last-child td{border-bottom:0}
 .empty{padding:30px;text-align:center;color:var(--muted)}
 .row-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
 dialog{
-  width:min(720px,calc(100% - 28px));max-height:calc(100vh - 30px);overflow:auto;
+  width:min(720px,calc(100% - 28px));max-height:calc(100vh - 30px);max-height:calc(100dvh - 30px);overflow:auto;overscroll-behavior:contain;
   padding:0;border-radius:18px;border:1px solid var(--border);background:#10141c;color:var(--text);box-shadow:0 30px 100px rgba(0,0,0,.5);
 }
 dialog::backdrop{background:rgba(0,0,0,.72);backdrop-filter:blur(3px)}
@@ -234,7 +245,7 @@ dialog::backdrop{background:rgba(0,0,0,.72);backdrop-filter:blur(3px)}
 
 .onboarding{max-width:650px;margin:50px auto;padding:22px}
 .onboarding h2{margin:0 0 5px}
-.toast-wrap{position:fixed;right:18px;bottom:18px;display:grid;gap:8px;z-index:3000;max-width:min(390px,calc(100vw - 28px))}
+.toast-wrap{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));display:grid;gap:8px;z-index:3000;max-width:min(390px,calc(100vw - 28px))}
 .toast{
   border:1px solid var(--border);border-left:4px solid var(--gold);border-radius:12px;padding:12px 14px;background:var(--panel);
   box-shadow:0 20px 55px rgba(0,0,0,.35);animation:toastIn .2s ease-out;
@@ -247,14 +258,42 @@ dialog::backdrop{background:rgba(0,0,0,.72);backdrop-filter:blur(3px)}
 }
 @media(max-width:900px){
   .hero{grid-template-columns:1fr;min-height:auto}.login-card{justify-self:stretch;max-width:none}
-  .hero-points{grid-template-columns:1fr}.app-shell{grid-template-columns:1fr}.sidebar{position:static}
-  .nav{grid-template-columns:repeat(3,1fr)}.nav button{text-align:center}
+  .hero-points{grid-template-columns:1fr}.app-shell{grid-template-columns:1fr}
+  /* Menu vira uma faixa horizontal rolável, sem empurrar o conteúdo para baixo. */
+  .sidebar{position:static;max-height:none;padding:10px}
+  .sidebar-head{padding:2px 4px 8px;margin-bottom:8px}
+  .nav{display:flex;gap:6px;overflow-x:auto;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+  .nav button{flex:0 0 auto;width:auto;white-space:nowrap;text-align:center;scroll-snap-align:start}
+  /* Evita o zoom automático do iOS ao focar campos com fonte menor que 16px. */
+  input,select,textarea{font-size:16px}
 }
 @media(max-width:620px){
-  .wrap{padding:13px}.hero h1{font-size:44px}.metrics{grid-template-columns:1fr 1fr}
-  .page-head{flex-direction:column}.filters{width:100%}.filters select{width:100%}.search{min-width:100%}
-  .modal-grid{grid-template-columns:1fr}.modal-grid .full{grid-column:auto}.nav{grid-template-columns:1fr 1fr}
-  .topbar{align-items:flex-start}.quick-actions{grid-template-columns:1fr}.modal-actions .btn{flex:1}
+  .wrap{padding:13px;padding-left:max(13px,env(safe-area-inset-left));padding-right:max(13px,env(safe-area-inset-right));padding-bottom:max(13px,env(safe-area-inset-bottom))}
+  .hero h1{font-size:44px}.metrics{grid-template-columns:1fr 1fr}
+  .page-head{flex-direction:column}.page-head .btn{width:100%}
+  .filters{width:100%}.filters select{width:100%;min-width:0}.search{min-width:100%}
+  .modal-grid{grid-template-columns:1fr}.modal-grid .full{grid-column:auto}
+  .topbar{flex-wrap:wrap;align-items:center}.top-actions{width:100%;justify-content:flex-start}
+  .global-search-box{position:static;flex:1 1 100%;min-width:0}
+  .global-search-results{left:0;right:0;width:auto;top:auto;margin-top:8px;max-height:60vh}
+  .top-actions{position:relative}
+  .quick-actions{grid-template-columns:1fr}.modal-actions .btn{flex:1}
+  .modal{padding:16px}
+  dialog{width:calc(100% - 16px);max-height:calc(100dvh - 16px)}
+  .dashboard-grid{grid-template-columns:1fr}
+  /* Tabelas viram cartões: cada célula mostra o nome da coluna. */
+  .table-card{overflow:visible;background:transparent;border:0;box-shadow:none}
+  .tablewrap{overflow:visible}
+  table{min-width:0}
+  thead{display:none}
+  tbody,tbody tr,tbody td{display:block;width:100%}
+  tbody tr{border:1px solid var(--border);border-radius:14px;background:var(--panel);margin-bottom:10px;padding:6px 2px}
+  tbody tr:last-child td,tbody td{border-bottom:0}
+  tbody td{padding:7px 12px}
+  tbody td[data-label]{display:grid;grid-template-columns:minmax(92px,34%) minmax(0,1fr);gap:10px;align-items:start;justify-items:start}
+  tbody td[data-label]::before{content:attr(data-label);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding-top:2px}
+  tbody td.cell-actions .row-actions{justify-content:flex-start}
+  .message-cell{max-width:none}.message-preview{white-space:normal}
 }
 
 .password-field{position:relative}
@@ -283,7 +322,7 @@ dialog::backdrop{background:rgba(0,0,0,.72);backdrop-filter:blur(3px)}
 
 @media print{
   body{background:#fff;color:#000}
-  .topbar,.sidebar,.section:not(#section-reports),#section-reports .page-head .btn{display:none!important}
+  .preview-banner,.toast-wrap,dialog,.topbar,.sidebar,.section:not(#section-reports),#section-reports .page-head .btn{display:none!important}
   #app,.app-shell,.content,#section-reports{display:block!important}
   .wrap{max-width:none;padding:0}
   .card{box-shadow:none;background:#fff;color:#000;border:1px solid #ccc}
