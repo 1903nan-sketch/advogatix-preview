@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AdvogaTix — Gestão jurídica e comunicação com clientes</title>
+  <meta name="description" content="Painel interno para escritórios acompanharem clientes, processos e enviarem atualizações pelo WhatsApp." />
+  <meta name="theme-color" content="#080a0f" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="landing" class="landing">
+    <div class="wrap">
+      <header class="topbar">
+        <div class="brand"><div class="brand-mark"></div><span>AdvogaTix</span></div>
+        <div class="pill"><span class="dot"></span> Painel interno do escritório</div>
+      </header>
+
+      <main class="hero">
+        <section class="hero-copy">
+          <span class="eyebrow">Processos • clientes • movimentações • WhatsApp</span>
+          <h1>Atualize o processo.<br><span>Avise o cliente em segundos.</span></h1>
+          <p>O AdvogaTix centraliza os dados do processo e permite que o advogado envie uma atualização organizada ao cliente somente quando decidir.</p>
+
+          <div class="hero-points">
+            <div class="mini-card">
+              <strong>Painel só do advogado</strong>
+              <span>O cliente não possui login nem área própria.</span>
+            </div>
+            <div class="mini-card">
+              <strong>Movimentação estruturada</strong>
+              <span>Audiência, sentença, acórdão, perícia ou atualização personalizada.</span>
+            </div>
+            <div class="mini-card">
+              <strong>Envio controlado</strong>
+              <span>Prévia da mensagem antes de confirmar o WhatsApp.</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="card login-card">
+          <div class="eyebrow" style="margin-bottom:10px">Acesso autorizado</div>
+          <h2 style="margin:0 0 5px">Entrar no painel</h2>
+          <p class="muted" style="margin:0 0 16px">Use o e-mail e a senha cadastrados pelo administrador do AdvogaTix.</p>
+
+          <form id="authForm">
+            <label for="email">E-mail</label>
+            <input id="email" type="email" autocomplete="email" required placeholder="voce@escritorio.com.br" />
+
+            <label for="password">Senha</label>
+            <div class="password-field">
+              <input id="password" type="password" autocomplete="current-password" minlength="6" required placeholder="Sua senha" />
+              <button id="togglePassword" class="password-toggle" type="button" aria-label="Mostrar senha" title="Mostrar senha">Mostrar</button>
+            </div>
+
+            <button id="authSubmit" class="btn full" style="margin-top:14px">Entrar no painel</button>
+            <div id="authStatus" class="status"></div>
+          </form>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="wrap">
+      <header class="topbar">
+        <div class="brand"><div class="brand-mark"></div><span>AdvogaTix</span></div>
+        <div class="top-actions">
+          <span id="roleLabel" class="pill">Equipe</span>
+          <span id="userLabel" class="pill">Conectado</span>
+          <button id="logoutBtn" class="btn secondary" type="button">Sair</button>
+        </div>
+      </header>
+
+      <section id="onboardingArea" class="card onboarding hidden">
+        <h2>Configure seu escritório</h2>
+        <p class="muted">Esta conta já está autorizada. Agora configure os dados do escritório para abrir o painel.</p>
+
+        <form id="firmForm">
+          <label for="firmInput">Nome do escritório</label>
+          <input id="firmInput" required placeholder="Ex.: Silva & Associados" />
+
+          <label for="slugInput">Identificador</label>
+          <input id="slugInput" required placeholder="silva-associados" />
+
+          <div class="modal-grid">
+            <div>
+              <label for="firmWhatsapp">WhatsApp do escritório</label>
+              <input id="firmWhatsapp" placeholder="5511999999999" />
+            </div>
+            <div>
+              <label for="firmEmail">E-mail</label>
+              <input id="firmEmail" type="email" placeholder="contato@escritorio.com.br" />
+            </div>
+          </div>
+
+          <button class="btn" style="margin-top:15px">Criar escritório</button>
+          <div id="firmStatus" class="status"></div>
+        </form>
+      </section>
+
+      <div id="lawyerArea" class="app-shell hidden">
+        <aside class="card sidebar">
+          <div class="sidebar-head">
+            <div class="small">ESCRITÓRIO</div>
+            <strong id="firmName">AdvogaTix</strong>
+          </div>
+
+          <nav class="nav">
+            <button class="active" data-section="overview">Visão geral</button>
+            <button data-section="clients">Clientes</button>
+            <button data-section="cases">Processos</button>
+            <button data-section="movements">Movimentações</button>
+            <button data-section="messages">Mensagens</button>
+            <button data-section="settings">Configurações</button>
+          </nav>
+        </aside>
+
+        <main class="content">
+          <section id="section-overview" class="section show">
+            <div class="page-head">
+              <div>
+                <h2>Visão geral</h2>
+                <p>Acompanhe o escritório e as últimas atualizações.</p>
+              </div>
+            </div>
+
+            <div class="metrics">
+              <div class="card metric">
+                <div class="metric-label"><span>Clientes</span><span class="metric-icon">👤</span></div>
+                <b id="mClients">0</b>
+              </div>
+              <div class="card metric">
+                <div class="metric-label"><span>Processos ativos</span><span class="metric-icon">§</span></div>
+                <b id="mCases">0</b>
+              </div>
+              <div class="card metric">
+                <div class="metric-label"><span>Movimentações</span><span class="metric-icon">↗</span></div>
+                <b id="mUpdates">0</b>
+              </div>
+              <div class="card metric">
+                <div class="metric-label"><span>WhatsApps enviados</span><span class="metric-icon">✓</span></div>
+                <b id="mMessages">0</b>
+              </div>
+            </div>
+
+            <div class="dashboard-grid">
+              <div class="card panel">
+                <h3>Últimas movimentações</h3>
+                <div id="recentUpdates" class="timeline"></div>
+              </div>
+
+              <div class="card panel">
+                <h3>Ações rápidas</h3>
+                <div class="quick-actions">
+                  <button id="quickClient" class="quick-action" type="button">
+                    <strong>Novo cliente</strong>
+                    <span>Cadastre os dados de contato.</span>
+                  </button>
+                  <button id="quickCase" class="quick-action" type="button">
+                    <strong>Novo processo</strong>
+                    <span>Vincule processo e cliente.</span>
+                  </button>
+                  <button id="quickMovement" class="quick-action" type="button">
+                    <strong>Nova movimentação</strong>
+                    <span>Atualize e envie ao cliente.</span>
+                  </button>
+                </div>
+
+                <h3 style="margin-top:18px">Próximas audiências</h3>
+                <div id="nextHearings" class="timeline"></div>
+              </div>
+            </div>
+          </section>
+
+          <section id="section-clients" class="section">
+            <div class="page-head">
+              <div>
+                <h2>Clientes</h2>
+                <p>Dados usados pelo escritório e nas mensagens enviadas.</p>
+              </div>
+              <button id="newClientBtn" class="btn" type="button">Novo cliente</button>
+            </div>
+
+            <div class="toolbar">
+              <div class="filters">
+                <div class="search">
+                  <input id="clientSearch" type="search" placeholder="Buscar cliente, telefone ou indicação" />
+                </div>
+                <select id="clientFilter">
+                  <option value="all">Todos os status</option>
+                  <option value="active">Ativos</option>
+                  <option value="inactive">Inativos</option>
+                </select>
+              </div>
+              <span id="clientCount" class="small"></span>
+            </div>
+
+            <div class="card table-card">
+              <div class="tablewrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Cliente</th>
+                      <th>Telefone</th>
+                      <th>E-mail</th>
+                      <th>Indicação</th>
+                      <th>Status</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="clientsBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <section id="section-cases" class="section">
+            <div class="page-head">
+              <div>
+                <h2>Processos</h2>
+                <p>Cadastre as informações que serão usadas no acompanhamento e no WhatsApp.</p>
+              </div>
+              <button id="newCaseBtn" class="btn" type="button">Novo processo</button>
+            </div>
+
+            <div class="toolbar">
+              <div class="filters">
+                <div class="search">
+                  <input id="caseSearch" type="search" placeholder="Buscar processo, cliente, reclamante ou fórum" />
+                </div>
+                <select id="caseFilter">
+                  <option value="all">Todos os status</option>
+                  <option value="new">Novo</option>
+                  <option value="in_progress">Em andamento</option>
+                  <option value="awaiting_court">Aguardando tribunal</option>
+                  <option value="awaiting_client">Aguardando cliente</option>
+                  <option value="suspended">Suspenso</option>
+                  <option value="closed">Encerrado</option>
+                  <option value="archived">Arquivado</option>
+                </select>
+              </div>
+              <span id="caseCount" class="small"></span>
+            </div>
+
+            <div class="card table-card">
+              <div class="tablewrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Processo</th>
+                      <th>Cliente</th>
+                      <th>Partes / Local</th>
+                      <th>Audiência</th>
+                      <th>Status</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="casesBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <section id="section-movements" class="section">
+            <div class="page-head">
+              <div>
+                <h2>Movimentações</h2>
+                <p>Registre alterações e escolha quando enviar ao cliente.</p>
+              </div>
+              <button id="newMovementBtn" class="btn" type="button">Nova movimentação</button>
+            </div>
+
+            <div class="toolbar">
+              <div class="filters">
+                <div class="search">
+                  <input id="movementSearch" type="search" placeholder="Buscar movimentação ou processo" />
+                </div>
+                <select id="movementFilter">
+                  <option value="all">Todos os tipos</option>
+                  <option value="hearing">Audiência</option>
+                  <option value="sentence">Sentença</option>
+                  <option value="appellate_decision">Acórdão</option>
+                  <option value="expert_exam">Perícia</option>
+                  <option value="custom">Personalizada</option>
+                </select>
+              </div>
+              <span id="movementCount" class="small"></span>
+            </div>
+
+            <div class="card panel">
+              <div id="updatesList" class="timeline"></div>
+            </div>
+          </section>
+
+          <section id="section-messages" class="section">
+            <div class="page-head">
+              <div>
+                <h2>Histórico de mensagens</h2>
+                <p>Veja o que foi enviado, falhou ou continua pendente.</p>
+              </div>
+              <span id="messageCount" class="pill">0 mensagens</span>
+            </div>
+
+            <div class="card table-card">
+              <div class="tablewrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Cliente</th>
+                      <th>Status</th>
+                      <th>Mensagem / erro</th>
+                      <th>ID provedor</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="messagesBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <section id="section-settings" class="section">
+            <div class="page-head">
+              <div>
+                <h2>Configurações</h2>
+                <p>Integrações do escritório.</p>
+              </div>
+            </div>
+
+            <div class="settings-grid">
+              <div class="card setting-card">
+                <h3>WhatsApp do escritório</h3>
+                <p>O servidor Evolution API já está configurado e protegido no backend. Aqui você só conecta o número do escritório.</p>
+
+                <div id="integrationState" class="integration-state">
+                  <span class="light"></span>
+                  <span id="integrationStateText">Consultando WhatsApp...</span>
+                </div>
+
+                <div id="waConnectedInfo" class="notice hidden" style="margin-bottom:12px"></div>
+
+                <div id="waQrWrap" class="wa-qr-wrap hidden">
+                  <div id="waQr" class="wa-qr"></div>
+                  <strong>Escaneie este QR Code no WhatsApp</strong>
+                  <span>WhatsApp → Aparelhos conectados → Conectar um aparelho</span>
+                </div>
+
+                <div class="actions-row">
+                  <button id="waConnectBtn" class="btn" type="button">Conectar WhatsApp</button>
+                  <button id="waRefreshBtn" class="btn secondary" type="button">Atualizar status</button>
+                </div>
+
+                <div id="waStatus" class="status"></div>
+                <div id="waPermissionNote" class="notice hidden">Somente o proprietário do escritório pode conectar ou trocar o WhatsApp.</div>
+              </div>
+
+              <div class="card setting-card">
+                <h3>Como o envio funciona</h3>
+                <p>O AdvogaTix não envia mensagens só porque um processo foi editado.</p>
+                <div class="notice">
+                  O fluxo é: <strong>Nova movimentação → Revisar mensagem → Confirmar envio</strong>.
+                  O histórico guarda horário, telefone, status e ID retornado pela API.
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <dialog id="clientDialog">
+    <form id="clientForm" class="modal">
+      <div class="modal-head">
+        <div>
+          <h3 id="clientDialogTitle">Novo cliente</h3>
+          <p>Cadastre os dados principais do cliente.</p>
+        </div>
+        <button class="btn ghost close-x" type="button" data-close>×</button>
+      </div>
+
+      <div class="modal-grid">
+        <div class="full">
+          <label for="cName">Cliente</label>
+          <input id="cName" required placeholder="Nome completo" />
+        </div>
+        <div>
+          <label for="cPhone">Telefone / WhatsApp</label>
+          <input id="cPhone" placeholder="(11) 99999-9999" />
+        </div>
+        <div>
+          <label for="cEmail">E-mail</label>
+          <input id="cEmail" type="email" placeholder="cliente@email.com" />
+        </div>
+        <div>
+          <label for="cReferred">Quem indicou o cliente</label>
+          <input id="cReferred" placeholder="Nome da indicação" />
+        </div>
+        <div>
+          <label for="cStatus">Status</label>
+          <select id="cStatus">
+            <option value="active">Ativo</option>
+            <option value="inactive">Inativo</option>
+          </select>
+        </div>
+        <div class="full">
+          <label for="cNotes">Observações internas</label>
+          <textarea id="cNotes" placeholder="Informações internas do escritório"></textarea>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn secondary" type="button" data-close>Cancelar</button>
+        <button id="clientSaveBtn" class="btn">Cadastrar cliente</button>
+      </div>
+      <div id="clientStatus" class="status"></div>
+    </form>
+  </dialog>
+
+  <dialog id="caseDialog">
+    <form id="caseForm" class="modal">
+      <div class="modal-head">
+        <div>
+          <h3 id="caseDialogTitle">Novo processo</h3>
+          <p>Cadastre as informações processuais usadas no painel e nas mensagens.</p>
+        </div>
+        <button class="btn ghost close-x" type="button" data-close>×</button>
+      </div>
+
+      <div class="modal-grid">
+        <div class="full">
+          <label for="caseClient">Cliente</label>
+          <select id="caseClient" required></select>
+        </div>
+        <div class="full">
+          <label for="caseTitle">Nome interno do processo</label>
+          <input id="caseTitle" required placeholder="Ex.: Reclamação trabalhista — Empresa XPTO" />
+        </div>
+        <div>
+          <label for="caseNumber">Número do processo</label>
+          <input id="caseNumber" placeholder="0000000-00.0000.0.00.0000" />
+        </div>
+        <div>
+          <label for="caseType">Tipo</label>
+          <input id="caseType" placeholder="Trabalhista, Cível..." />
+        </div>
+        <div>
+          <label for="caseClaimant">Reclamante</label>
+          <input id="caseClaimant" placeholder="Nome do reclamante" />
+        </div>
+        <div>
+          <label for="caseDefendant">Reclamada</label>
+          <input id="caseDefendant" placeholder="Nome da reclamada" />
+        </div>
+        <div>
+          <label for="caseForum">Fórum</label>
+          <input id="caseForum" placeholder="Fórum / Tribunal" />
+        </div>
+        <div>
+          <label for="caseDivision">Vara</label>
+          <input id="caseDivision" placeholder="Ex.: 12ª Vara do Trabalho" />
+        </div>
+        <div class="full">
+          <label for="caseCourt">Tribunal / identificação adicional</label>
+          <input id="caseCourt" placeholder="Ex.: TRT da 2ª Região" />
+        </div>
+        <div>
+          <label for="caseHearing">Data da audiência</label>
+          <input id="caseHearing" type="datetime-local" />
+        </div>
+        <div>
+          <label for="caseHearingMode">Modalidade</label>
+          <select id="caseHearingMode">
+            <option value="">Não informada</option>
+            <option value="presential">Presencial</option>
+            <option value="remote">Telepresencial</option>
+            <option value="hybrid">Híbrida</option>
+          </select>
+        </div>
+        <div>
+          <label for="caseStatus">Status</label>
+          <select id="caseStatus">
+            <option value="new">Novo</option>
+            <option value="in_progress">Em andamento</option>
+            <option value="awaiting_court">Aguardando tribunal</option>
+            <option value="awaiting_client">Aguardando cliente</option>
+            <option value="suspended">Suspenso</option>
+            <option value="closed">Encerrado</option>
+            <option value="archived">Arquivado</option>
+          </select>
+        </div>
+        <div class="full">
+          <label for="caseSummary">Resumo interno</label>
+          <textarea id="caseSummary" placeholder="Resumo do processo para consulta rápida"></textarea>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn secondary" type="button" data-close>Cancelar</button>
+        <button id="caseSaveBtn" class="btn">Cadastrar processo</button>
+      </div>
+      <div id="caseStatusMsg" class="status"></div>
+    </form>
+  </dialog>
+
+  <dialog id="movementDialog">
+    <form id="movementForm" class="modal">
+      <div class="modal-head">
+        <div>
+          <h3>Nova movimentação</h3>
+          <p>Você pode salvar internamente ou revisar a mensagem antes de enviar.</p>
+        </div>
+        <button class="btn ghost close-x" type="button" data-close>×</button>
+      </div>
+
+      <label for="movementCase">Processo</label>
+      <select id="movementCase" required></select>
+
+      <label for="movementType">Tipo de movimentação</label>
+      <select id="movementType">
+        <option value="hearing">Audiência</option>
+        <option value="sentence">Sentença</option>
+        <option value="appellate_decision">Acórdão</option>
+        <option value="expert_exam">Perícia</option>
+        <option value="custom">Personalizada</option>
+      </select>
+
+      <div id="hearingFields" class="dynamic-box">
+        <div class="modal-grid">
+          <div>
+            <label for="movementHearing">Nova data e hora</label>
+            <input id="movementHearing" type="datetime-local" />
+          </div>
+          <div>
+            <label for="movementHearingMode">Modalidade</label>
+            <select id="movementHearingMode">
+              <option value="presential">Presencial</option>
+              <option value="remote">Telepresencial</option>
+              <option value="hybrid">Híbrida</option>
+            </select>
+          </div>
+          <div class="full">
+            <label for="movementHearingSummary">Observação para o cliente</label>
+            <textarea id="movementHearingSummary" placeholder="Ex.: Comparecer com 30 minutos de antecedência."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div id="decisionFields" class="dynamic-box hidden">
+        <label for="movementDecisionSummary">Resumo para o cliente</label>
+        <textarea id="movementDecisionSummary" placeholder="Explique o resultado da decisão de forma clara e objetiva."></textarea>
+      </div>
+
+      <div id="expertFields" class="dynamic-box hidden">
+        <div class="modal-grid">
+          <div>
+            <label for="movementExpertAt">Data e hora da perícia</label>
+            <input id="movementExpertAt" type="datetime-local" />
+          </div>
+          <div>
+            <label for="movementExpertName">Perito(a)</label>
+            <input id="movementExpertName" placeholder="Nome do perito" />
+          </div>
+          <div class="full">
+            <label for="movementExpertLocation">Local</label>
+            <input id="movementExpertLocation" placeholder="Endereço / local da perícia" />
+          </div>
+          <div class="full">
+            <label for="movementExpertSummary">Observação para o cliente</label>
+            <textarea id="movementExpertSummary" placeholder="Orientações adicionais"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div id="customFields" class="dynamic-box hidden">
+        <label for="movementCustomTitle">Título</label>
+        <input id="movementCustomTitle" placeholder="Ex.: Documento juntado aos autos" />
+        <label for="movementCustomSummary">Resumo para o cliente</label>
+        <textarea id="movementCustomSummary" placeholder="Explique o que mudou."></textarea>
+      </div>
+
+      <label for="movementLegal">Anotação interna do advogado</label>
+      <textarea id="movementLegal" placeholder="Texto técnico ou observação interna. Não vai no WhatsApp."></textarea>
+
+      <div class="modal-actions">
+        <button class="btn secondary" type="button" data-close>Cancelar</button>
+        <button class="btn ghost" type="submit" value="save">Salvar somente</button>
+        <button class="btn" type="submit" value="send">Revisar e enviar</button>
+      </div>
+      <div id="movementStatus" class="status"></div>
+    </form>
+  </dialog>
+
+  <dialog id="previewDialog">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <h3>Prévia da mensagem</h3>
+          <p>Confira o texto antes de enviar ao cliente.</p>
+        </div>
+        <button class="btn ghost close-x" type="button" data-close>×</button>
+      </div>
+
+      <div id="messagePreview" class="preview"></div>
+
+      <div class="modal-actions">
+        <button id="backToMovementBtn" class="btn secondary" type="button">Voltar e editar</button>
+        <button id="confirmSendBtn" class="btn" type="button">Confirmar e enviar</button>
+      </div>
+      <div id="previewStatus" class="status"></div>
+    </div>
+  </dialog>
+
+  <div id="toastWrap" class="toast-wrap" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
