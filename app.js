@@ -19,6 +19,10 @@
     calendarEvents: [],
     financialEntries: [],
     leads: [],
+    clientInteractions: [],
+    checklistItems: [],
+    activeClientFileId: null,
+    activeCaseWorkspaceId: null,
     pendingMovement: null,
     whatsapp: { configured: false, enabled: false, base_url: "", instance_name: "", api_key_masked: "" },
     editingClientId: null,
@@ -861,6 +865,7 @@
             <td>${badge(c.status === "active" ? "Ativo" : "Inativo", c.status === "active" ? "ok" : "")}</td>
             <td>
               <div class="row-actions">
+                <button class="btn ghost sm" data-client-file="${c.id}">Ficha</button>
                 <button class="btn secondary sm" data-edit-client="${c.id}">Editar</button>
               </div>
             </td>
@@ -894,9 +899,10 @@
               <td>${esc(client?.full_name || "—")}</td>
               <td><div>${esc(parties || "—")}</div><div class="small">${esc([c.forum, c.court_division].filter(Boolean).join(" • "))}</div></td>
               <td>${c.hearing_at ? `<strong>${brDate(c.hearing_at)}</strong><div class="small">${esc(modeLabels[c.hearing_mode] || "")}</div>` : "—"}</td>
-              <td>${badge(statusLabels[c.status] || c.status, statusType)}</td>
+              <td>${badge(statusLabels[c.status] || c.status, statusType)}<div class="small" data-case-health="${c.id}"></div></td>
               <td>
                 <div class="row-actions">
+                  <button class="btn ghost sm" data-case-workspace="${c.id}">Organizar</button>
                   <button class="btn ghost sm" data-move-case="${c.id}">Movimentar</button>
                   <button class="btn secondary sm" data-edit-case="${c.id}">Editar</button>
                 </div>
