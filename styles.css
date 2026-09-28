@@ -279,3 +279,14 @@ dialog::backdrop{background:rgba(0,0,0,.72);backdrop-filter:blur(3px)}
   background:#fff;padding:10px;border-radius:10px;
 }
 .wa-qr img,.wa-qr canvas{max-width:100%;height:auto!important}
+
+
+@media print{
+  body{background:#fff;color:#000}
+  .topbar,.sidebar,.section:not(#section-reports),#section-reports .page-head .btn{display:none!important}
+  #app,.app-shell,.content,#section-reports{display:block!important}
+  .wrap{max-width:none;padding:0}
+  .card{box-shadow:none;background:#fff;color:#000;border:1px solid #ccc}
+  .muted,.small,.metric span,.event small{color:#444!important}
+  .dashboard-grid{grid-template-columns:1fr 1fr}
+}
