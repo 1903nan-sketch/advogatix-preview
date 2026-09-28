@@ -1,6 +1,9 @@
-const CACHE = "advogatix-preview-v2";
+// Ao publicar uma nova versão, aumente ASSET_VERSION aqui e o ?v= em index.html.
+const ASSET_VERSION = "3";
+const CACHE = "advogatix-preview-v" + ASSET_VERSION;
 const SHELL = [
-  "./", "./index.html", "./styles.css", "./app.js", "./organizer.js",
+  "./", "./index.html",
+  "./styles.css?v=" + ASSET_VERSION, "./app.js?v=" + ASSET_VERSION, "./organizer.js?v=" + ASSET_VERSION,
   "./manifest.webmanifest", "./icon.svg", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png"
 ];
 
@@ -22,7 +25,9 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
   event.respondWith(
-    fetch(request)
+    // no-cache: sempre revalida com o servidor, evitando misturar arquivos de versões diferentes.
+    // Requisições de navegação não aceitam opções extras, por isso são recriadas pela URL.
+    fetch(request.mode === "navigate" ? new Request(request.url, { cache: "no-cache" }) : new Request(request, { cache: "no-cache" }))
       .then((response) => {
         if (response.ok && response.type === "basic") {
           const copy = response.clone();

@@ -1,7 +1,7 @@
 (() => {
   // Registrado antes de tudo para funcionar mesmo se o restante do script falhar.
   if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
+    window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).catch(() => {}));
   }
 
   const SUPABASE_URL = "https://llxquroiaehemebuikwg.supabase.co";
