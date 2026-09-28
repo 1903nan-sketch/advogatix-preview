@@ -644,6 +644,155 @@
   }
 
 
+
+  function formatBytes(bytes) {
+    const value = Number(bytes || 0);
+    if (!value) return "—";
+    if (value < 1024) return value + " B";
+    if (value < 1024 * 1024) return (value / 1024).toFixed(1) + " KB";
+    return (value / (1024 * 1024)).toFixed(1) + " MB";
+  }
+
+  function openDocumentDialog() {
+    if (!state.cases.length) {
+      toast("Cadastre um processo antes de enviar documentos.", "err");
+      core.switchSection("cases");
+      return;
+    }
+    $("#documentForm").reset();
+    setStatus($("#documentStatusMsg"));
+    $("#documentCase").innerHTML = caseOptions("", false);
+    openDialog("documentDialog");
+  }
+
+  $("#documentForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = event.submitter;
+    const file = $("#documentFile").files?.[0];
+    const caseId = $("#documentCase").value;
+    if (!file || !caseId) return;
+
+    if (file.size > 25 * 1024 * 1024) {
+      setStatus($("#documentStatusMsg"), "O arquivo ultrapassa o limite de 25 MB.", "err");
+      return;
+    }
+
+    setBusy(button, true, "Enviando");
+    const safeName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-");
+    const path = state.firm.id + "/" + caseId + "/" + Date.now() + "-" + safeName;
+
+    try {
+      const { error: uploadError } = await supabase.storage.from("case-documents").upload(path, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type || undefined
+      });
+      if (uploadError) throw uploadError;
+
+      const { error: rowError } = await supabase.from("documents").insert({
+        firm_id: state.firm.id,
+        case_id: caseId,
+        uploaded_by: state.user.id,
+        name: file.name,
+        storage_path: path,
+        mime_type: file.type || null,
+        size_bytes: file.size,
+        visibility: "internal",
+        document_type: $("#documentType").value || "outro",
+        notes: $("#documentNotes").value.trim() || null
+      });
+
+      if (rowError) {
+        await supabase.storage.from("case-documents").remove([path]);
+        throw rowError;
+      }
+
+      closeDialog("documentDialog");
+      toast("Documento enviado com segurança.");
+      await core.loadData();
+    } catch (error) {
+      setStatus($("#documentStatusMsg"), error.message || "Não foi possível enviar o documento.", "err");
+    } finally {
+      setBusy(button, false);
+    }
+  });
+
+  async function downloadDocument(id, button) {
+    const doc = state.documents.find((x) => x.id === id);
+    if (!doc) return;
+    setBusy(button, true, "Abrindo");
+    try {
+      const { data, error } = await supabase.storage.from("case-documents").download(doc.storage_path);
+      if (error) throw error;
+      const url = URL.createObjectURL(data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = doc.name || "documento";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (error) {
+      toast(error.message || "Não foi possível baixar o documento.", "err");
+    } finally {
+      setBusy(button, false);
+    }
+  }
+
+  async function deleteDocument(id, button) {
+    const doc = state.documents.find((x) => x.id === id);
+    if (!doc) return;
+    if (!confirm("Excluir este documento do AdvogaTix?")) return;
+    setBusy(button, true, "Excluindo");
+    try {
+      const { error: storageError } = await supabase.storage.from("case-documents").remove([doc.storage_path]);
+      if (storageError) throw storageError;
+      const { error: dbError } = await supabase.from("documents").delete()
+        .eq("id", doc.id).eq("firm_id", state.firm.id);
+      if (dbError) throw dbError;
+      toast("Documento excluído.");
+      await core.loadData();
+    } catch (error) {
+      toast(error.message || "Não foi possível excluir o documento.", "err");
+    } finally {
+      setBusy(button, false);
+    }
+  }
+
+  function renderDocuments() {
+    const target = $("#documentsBody");
+    if (!target) return;
+    const query = norm($("#documentSearch")?.value || "");
+    const filter = $("#documentTypeFilter")?.value || "all";
+    const list = state.documents.filter((doc) => {
+      const proc = caseById(doc.case_id);
+      const client = proc ? clientById(proc.client_id) : null;
+      const matchesFilter = filter === "all" || doc.document_type === filter;
+      const matchesQuery = norm((doc.name || "") + " " + (doc.document_type || "") + " " + (client?.full_name || "") + " " + (proc?.process_number || "") + " " + (proc?.title || "")).includes(query);
+      return matchesFilter && matchesQuery;
+    });
+
+    $("#documentCount").textContent = list.length + " de " + state.documents.length;
+    target.innerHTML = list.length ? list.map((doc) => {
+      const proc = caseById(doc.case_id);
+      const client = proc ? clientById(proc.client_id) : null;
+      const canDelete = ["owner","lawyer"].includes(state.role);
+      return '<tr>' +
+        '<td><strong>' + esc(doc.name) + '</strong><div class="small">' + esc(doc.notes || "") + '</div></td>' +
+        '<td><strong>' + esc(client?.full_name || "—") + '</strong><div class="small">' + esc(proc?.process_number || proc?.title || "") + '</div></td>' +
+        '<td>' + esc(doc.document_type || "Outro") + '</td>' +
+        '<td>' + esc(formatBytes(doc.size_bytes)) + '</td>' +
+        '<td>' + brDate(doc.created_at) + '</td>' +
+        '<td><div class="row-actions"><button class="btn ghost sm" data-download-document="' + doc.id + '">Baixar</button>' +
+        (canDelete ? '<button class="btn secondary sm" data-delete-document="' + doc.id + '">Excluir</button>' : "") +
+        '</div></td></tr>';
+    }).join("") : '<tr><td colspan="6" class="empty">Nenhum documento encontrado.</td></tr>';
+
+    $("[data-download-document]").forEach((b) => b.addEventListener("click", () => downloadDocument(b.dataset.downloadDocument, b)));
+    $("[data-delete-document]").forEach((b) => b.addEventListener("click", () => deleteDocument(b.dataset.deleteDocument, b)));
+  }
+
   function financeIsReceivable(item) {
     return !payableTypes.has(item.entry_type);
   }
@@ -926,6 +1075,7 @@
     renderTasks();
     renderAgenda();
     renderFinance();
+    renderDocuments();
     renderLeads();
     renderToday();
     renderCaseHealthBadges();
@@ -937,21 +1087,23 @@
   }
 
   async function loadData(firmId) {
-    const [deadlines, tasks, events, finance, leads, interactions, checklist] = await Promise.all([
+    const [deadlines, tasks, events, finance, documents, leads, interactions, checklist] = await Promise.all([
       supabase.from("deadlines").select("*").eq("firm_id", firmId).order("due_at", { ascending: true }),
       supabase.from("tasks").select("*").eq("firm_id", firmId).order("due_at", { ascending: true, nullsFirst: false }),
       supabase.from("calendar_events").select("*").eq("firm_id", firmId).order("start_at", { ascending: true }),
       supabase.from("financial_entries").select("*").eq("firm_id", firmId).order("created_at", { ascending: false }),
+      supabase.from("documents").select("*").eq("firm_id", firmId).order("created_at", { ascending: false }),
       supabase.from("crm_leads").select("*").eq("firm_id", firmId).order("updated_at", { ascending: false }),
       supabase.from("client_interactions").select("*").eq("firm_id", firmId).order("occurred_at", { ascending: false }),
       supabase.from("case_checklist_items").select("*").eq("firm_id", firmId).order("created_at", { ascending: true })
     ]);
-    const errors = [deadlines.error, tasks.error, events.error, finance.error, leads.error, interactions.error, checklist.error].filter(Boolean);
+    const errors = [deadlines.error, tasks.error, events.error, finance.error, documents.error, leads.error, interactions.error, checklist.error].filter(Boolean);
     if (errors.length) throw errors[0];
     state.deadlines = deadlines.data || [];
     state.tasks = tasks.data || [];
     state.calendarEvents = events.data || [];
     state.financialEntries = finance.data || [];
+    state.documents = documents.data || [];
     state.leads = leads.data || [];
     state.clientInteractions = interactions.data || [];
     state.checklistItems = checklist.data || [];
@@ -963,12 +1115,14 @@
   $("#quickTask")?.addEventListener("click", () => openTaskDialog());
   $("#newEventBtn")?.addEventListener("click", () => openEventDialog());
   $("#newFinanceBtn")?.addEventListener("click", () => openFinanceDialog());
+  $("#newDocumentBtn")?.addEventListener("click", () => openDocumentDialog());
   $("#newLeadBtn")?.addEventListener("click", () => openLeadDialog());
 
   ["deadlineSearch","deadlineFilter"].forEach((id) => $("#" + id)?.addEventListener("input", renderDeadlines));
   ["taskSearch","taskFilter"].forEach((id) => $("#" + id)?.addEventListener("input", renderTasks));
   $("#agendaFilter")?.addEventListener("input", renderAgenda);
   ["financeSearch","financeFilter"].forEach((id) => $("#" + id)?.addEventListener("input", renderFinance));
+  ["documentSearch","documentTypeFilter"].forEach((id) => $("#" + id)?.addEventListener("input", renderDocuments));
   ["leadSearch","leadFilter"].forEach((id) => $("#" + id)?.addEventListener("input", renderLeads));
   $("#conflictSearch")?.addEventListener("input", renderConflictSearch);
   $("#printReportBtn")?.addEventListener("click", () => window.print());
