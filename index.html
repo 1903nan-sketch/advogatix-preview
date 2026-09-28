@@ -6,6 +6,10 @@
   <title>AdvogaTix — Gestão jurídica e comunicação com clientes</title>
   <meta name="description" content="Painel interno para escritórios acompanharem clientes, processos e enviarem atualizações pelo WhatsApp." />
   <meta name="theme-color" content="#080a0f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
@@ -1174,5 +1178,10 @@
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <script src="./app.js"></script>
   <script src="./organizer.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
+    }
+  </script>
 </body>
 </html>
