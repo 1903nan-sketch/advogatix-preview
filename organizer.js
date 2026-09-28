@@ -1069,6 +1069,81 @@
     }).join("");
   }
 
+
+  function renderGlobalSearch() {
+    const input = $("#globalSearch");
+    const target = $("#globalSearchResults");
+    if (!input || !target) return;
+    const q = norm(input.value).trim();
+    if (q.length < 2) {
+      target.classList.add("hidden");
+      target.innerHTML = "";
+      return;
+    }
+
+    const results = [];
+
+    state.clients.forEach((c) => {
+      if (norm((c.full_name || "") + " " + (c.cpf_cnpj || "") + " " + (c.phone || "")).includes(q)) {
+        results.push({ kind: "client", id: c.id, title: c.full_name, meta: "Cliente • " + (c.cpf_cnpj || c.phone || "") });
+      }
+    });
+
+    state.cases.forEach((c) => {
+      const client = clientById(c.client_id);
+      if (norm((c.title || "") + " " + (c.process_number || "") + " " + (c.claimant || "") + " " + (c.defendant || "") + " " + (client?.full_name || "")).includes(q)) {
+        results.push({ kind: "case", id: c.id, title: c.process_number || c.title, meta: "Processo • " + (client?.full_name || c.title || "") });
+      }
+    });
+
+    state.deadlines.forEach((x) => {
+      if (norm((x.title || "") + " " + (x.source || "")).includes(q)) {
+        results.push({ kind: "deadline", id: x.id, title: x.title, meta: "Prazo • " + brDate(x.due_at) });
+      }
+    });
+
+    state.tasks.forEach((x) => {
+      if (norm((x.title || "") + " " + (x.description || "")).includes(q)) {
+        results.push({ kind: "task", id: x.id, title: x.title, meta: "Tarefa" + (x.due_at ? " • " + brDate(x.due_at) : "") });
+      }
+    });
+
+    state.leads.forEach((x) => {
+      if (norm((x.full_name || "") + " " + (x.phone || "") + " " + (x.email || "")).includes(q)) {
+        results.push({ kind: "lead", id: x.id, title: x.full_name, meta: "CRM • " + (leadStatusLabels[x.status] || x.status) });
+      }
+    });
+
+    state.documents.forEach((x) => {
+      const proc = caseById(x.case_id);
+      if (norm((x.name || "") + " " + (x.document_type || "") + " " + (proc?.process_number || "")).includes(q)) {
+        results.push({ kind: "document", id: x.id, title: x.name, meta: "Documento • " + (proc?.process_number || proc?.title || "") });
+      }
+    });
+
+    const shown = results.slice(0, 14);
+    target.innerHTML = shown.length ? shown.map((r) =>
+      '<button class="global-result" type="button" data-global-kind="' + r.kind + '" data-global-id="' + r.id + '">' +
+      '<strong>' + esc(r.title) + '</strong><span>' + esc(r.meta) + '</span></button>'
+    ).join("") : '<div class="empty">Nenhum resultado encontrado.</div>';
+    target.classList.remove("hidden");
+
+    $("[data-global-kind]", target).forEach((b) => {
+      b.addEventListener("click", () => {
+        const kind = b.dataset.globalKind;
+        const id = b.dataset.globalId;
+        target.classList.add("hidden");
+        input.value = "";
+        if (kind === "client") return openClientFile(id);
+        if (kind === "case") return openCaseWorkspace(id);
+        if (kind === "deadline") { core.switchSection("deadlines"); openDeadlineDialog(id); return; }
+        if (kind === "task") { core.switchSection("tasks"); openTaskDialog(id); return; }
+        if (kind === "lead") { core.switchSection("crm"); openLeadDialog(id); return; }
+        if (kind === "document") { core.switchSection("documents"); return; }
+      });
+    });
+  }
+
   function renderAll() {
     fillOrganizerSelects();
     renderDeadlines();
@@ -1124,6 +1199,12 @@
   ["financeSearch","financeFilter"].forEach((id) => $("#" + id)?.addEventListener("input", renderFinance));
   ["documentSearch","documentTypeFilter"].forEach((id) => $("#" + id)?.addEventListener("input", renderDocuments));
   ["leadSearch","leadFilter"].forEach((id) => $("#" + id)?.addEventListener("input", renderLeads));
+  $("#globalSearch")?.addEventListener("input", renderGlobalSearch);
+  $("#globalSearch")?.addEventListener("focus", renderGlobalSearch);
+  document.addEventListener("click", (event) => {
+    const box = event.target.closest?.(".global-search-box");
+    if (!box) $("#globalSearchResults")?.classList.add("hidden");
+  });
   $("#conflictSearch")?.addEventListener("input", renderConflictSearch);
   $("#printReportBtn")?.addEventListener("click", () => window.print());
 
