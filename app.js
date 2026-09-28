@@ -14,10 +14,20 @@
     cases: [],
     updates: [],
     notifications: [],
+    deadlines: [],
+    tasks: [],
+    calendarEvents: [],
+    financialEntries: [],
+    leads: [],
     pendingMovement: null,
     whatsapp: { configured: false, enabled: false, base_url: "", instance_name: "", api_key_masked: "" },
     editingClientId: null,
     editingCaseId: null,
+    editingDeadlineId: null,
+    editingTaskId: null,
+    editingEventId: null,
+    editingFinanceId: null,
+    editingLeadId: null,
   };
 
   const statusLabels = {
@@ -270,6 +280,15 @@
       $("#cEmail").value = client.email || "";
       $("#cPhone").value = client.phone || "";
       $("#cReferred").value = client.referred_by || "";
+      $("#cCpfCnpj").value = client.cpf_cnpj || "";
+      $("#cRg").value = client.rg || "";
+      $("#cBirth").value = client.birth_date || "";
+      $("#cProfession").value = client.profession || "";
+      $("#cMarital").value = client.marital_status || "";
+      $("#cPostalCode").value = client.postal_code || "";
+      $("#cAddress").value = client.address_line || "";
+      $("#cCity").value = client.city || "";
+      $("#cStateCode").value = client.state_code || "";
       $("#cBankName").value = client.bank_name || "";
       $("#cBankBranch").value = client.bank_branch || "";
       $("#cBankAccount").value = client.bank_account || "";
@@ -292,6 +311,15 @@
       email: $("#cEmail").value.trim() || null,
       phone: $("#cPhone").value.trim() || null,
       referred_by: $("#cReferred").value.trim() || null,
+      cpf_cnpj: $("#cCpfCnpj").value.trim() || null,
+      rg: $("#cRg").value.trim() || null,
+      birth_date: $("#cBirth").value || null,
+      profession: $("#cProfession").value.trim() || null,
+      marital_status: $("#cMarital").value.trim() || null,
+      postal_code: $("#cPostalCode").value.trim() || null,
+      address_line: $("#cAddress").value.trim() || null,
+      city: $("#cCity").value.trim() || null,
+      state_code: $("#cStateCode").value.trim().toUpperCase() || null,
       bank_name: $("#cBankName").value.trim() || null,
       bank_branch: $("#cBankBranch").value.trim() || null,
       bank_account: $("#cBankAccount").value.trim() || null,
@@ -360,12 +388,16 @@
       $("#caseDivision").value = item.court_division || "";
       $("#caseCourt").value = item.court || "";
       $("#caseType").value = item.case_type || "";
+      $("#caseLegalArea").value = item.legal_area || "";
+      $("#caseValue").value = item.case_value ?? "";
+      $("#casePriority").value = item.priority || "normal";
       $("#caseHearing").value = toLocalInput(item.hearing_at);
       $("#caseHearingMode").value = item.hearing_mode || "";
       $("#caseStatus").value = item.status || "in_progress";
       $("#caseSummary").value = item.client_summary || "";
     } else {
       $("#caseStatus").value = "in_progress";
+      $("#casePriority").value = "normal";
     }
 
     openDialog("caseDialog");
@@ -386,6 +418,9 @@
       court_division: $("#caseDivision").value.trim() || null,
       court: $("#caseCourt").value.trim() || null,
       case_type: $("#caseType").value.trim() || null,
+      legal_area: $("#caseLegalArea").value.trim() || null,
+      case_value: $("#caseValue").value ? Number($("#caseValue").value) : null,
+      priority: $("#casePriority").value || "normal",
       hearing_at: toIso($("#caseHearing").value),
       hearing_mode: $("#caseHearingMode").value || null,
       status: $("#caseStatus").value,
@@ -811,7 +846,7 @@
     const status = $("#clientFilter").value;
     const list = state.clients.filter((c) => {
       const matchesStatus = status === "all" || c.status === status;
-      const haystack = norm(`${c.full_name} ${c.email} ${c.phone} ${c.referred_by}`);
+      const haystack = norm(`${c.full_name} ${c.email} ${c.phone} ${c.referred_by} ${c.cpf_cnpj} ${c.city}`);
       return matchesStatus && haystack.includes(query);
     });
 
@@ -819,7 +854,7 @@
     $("#clientsBody").innerHTML = list.length
       ? list.map((c) => `
           <tr>
-            <td><strong>${esc(c.full_name)}</strong><div class="small">${esc(c.notes || "")}</div></td>
+            <td><strong>${esc(c.full_name)}</strong><div class="small">${esc(c.cpf_cnpj || c.notes || "")}</div></td>
             <td>${esc(c.phone || "—")}</td>
             <td>${esc(c.email || "—")}</td>
             <td>${esc(c.referred_by || "—")}</td>
@@ -843,7 +878,7 @@
     const list = state.cases.filter((c) => {
       const client = clientById(c.client_id);
       const matchesStatus = status === "all" || c.status === status;
-      const haystack = norm(`${c.title} ${c.process_number} ${c.claimant} ${c.defendant} ${c.forum} ${c.court_division} ${client?.full_name}`);
+      const haystack = norm(`${c.title} ${c.process_number} ${c.claimant} ${c.defendant} ${c.forum} ${c.court_division} ${c.legal_area} ${client?.full_name}`);
       return matchesStatus && haystack.includes(query);
     });
 
@@ -978,6 +1013,7 @@
     renderMessages();
     fillClientSelect();
     fillCaseSelect();
+    window.AdvogaOrganizer?.renderAll?.();
   }
 
   ["clientSearch", "clientFilter"].forEach((id) => {
@@ -1013,6 +1049,9 @@
     state.cases = casesResult.data || [];
     state.updates = updatesResult.data || [];
     state.notifications = notificationsResult.data || [];
+    if (window.AdvogaOrganizer?.loadData) {
+      await window.AdvogaOrganizer.loadData(firmId);
+    }
     renderAll();
   }
 
@@ -1061,6 +1100,29 @@
   supabase.auth.onAuthStateChange((_event, session) => {
     if (!session && state.user) location.reload();
   });
+
+  window.AdvogaCore = {
+    supabase,
+    state,
+    $,
+    $,
+    esc,
+    norm,
+    brDate,
+    toIso,
+    toLocalInput,
+    toast,
+    setStatus,
+    setBusy,
+    openDialog,
+    closeDialog,
+    badge,
+    clientById,
+    caseById,
+    switchSection,
+    loadData,
+    renderAll,
+  };
 
   boot().catch((error) => {
     console.error(error);
