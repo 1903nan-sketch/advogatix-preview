@@ -110,6 +110,11 @@
             <button class="active" data-section="overview">Visão geral</button>
             <button data-section="clients">Clientes</button>
             <button data-section="cases">Processos</button>
+            <button data-section="deadlines">Prazos</button>
+            <button data-section="agenda">Agenda</button>
+            <button data-section="tasks">Tarefas</button>
+            <button data-section="finance">Financeiro</button>
+            <button data-section="crm">CRM</button>
             <button data-section="movements">Movimentações</button>
             <button data-section="messages">Mensagens</button>
             <button data-section="settings">Configurações</button>
@@ -139,14 +144,24 @@
                 <b id="mUpdates">0</b>
               </div>
               <div class="card metric">
-                <div class="metric-label"><span>WhatsApps enviados</span><span class="metric-icon">✓</span></div>
+                <div class="metric-label"><span>Prazos pendentes</span><span class="metric-icon">!</span></div>
+                <b id="mDeadlines">0</b>
+              </div>
+              <div class="card metric">
+                <div class="metric-label"><span>Tarefas abertas</span><span class="metric-icon">✓</span></div>
+                <b id="mTasks">0</b>
+              </div>
+              <div class="card metric">
+                <div class="metric-label"><span>WhatsApps enviados</span><span class="metric-icon">↗</span></div>
                 <b id="mMessages">0</b>
               </div>
             </div>
 
             <div class="dashboard-grid">
               <div class="card panel">
-                <h3>Últimas movimentações</h3>
+                <h3>Meu dia</h3>
+                <div id="todayList" class="timeline"></div>
+                <h3 style="margin-top:20px">Últimas movimentações</h3>
                 <div id="recentUpdates" class="timeline"></div>
               </div>
 
@@ -164,6 +179,14 @@
                   <button id="quickMovement" class="quick-action" type="button">
                     <strong>Nova movimentação</strong>
                     <span>Atualize e envie ao cliente.</span>
+                  </button>
+                  <button id="quickDeadline" class="quick-action" type="button">
+                    <strong>Novo prazo</strong>
+                    <span>Registre vencimento e prioridade.</span>
+                  </button>
+                  <button id="quickTask" class="quick-action" type="button">
+                    <strong>Nova tarefa</strong>
+                    <span>Organize o trabalho do escritório.</span>
                   </button>
                 </div>
 
@@ -257,6 +280,158 @@
                     </tr>
                   </thead>
                   <tbody id="casesBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+
+          <section id="section-deadlines" class="section">
+            <div class="page-head">
+              <div>
+                <h2>Prazos</h2>
+                <p>Controle prazos processuais e internos com prioridade e responsável.</p>
+              </div>
+              <button id="newDeadlineBtn" class="btn" type="button">Novo prazo</button>
+            </div>
+            <div class="toolbar">
+              <div class="filters">
+                <div class="search"><input id="deadlineSearch" type="search" placeholder="Buscar prazo, cliente ou processo" /></div>
+                <select id="deadlineFilter">
+                  <option value="open">Abertos</option>
+                  <option value="overdue">Vencidos</option>
+                  <option value="today">Vencem hoje</option>
+                  <option value="all">Todos</option>
+                  <option value="completed">Concluídos</option>
+                </select>
+              </div>
+              <span id="deadlineCount" class="small"></span>
+            </div>
+            <div class="card table-card">
+              <div class="tablewrap">
+                <table>
+                  <thead><tr><th>Prazo</th><th>Cliente / Processo</th><th>Vencimento</th><th>Prioridade</th><th>Status</th><th></th></tr></thead>
+                  <tbody id="deadlinesBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <section id="section-agenda" class="section">
+            <div class="page-head">
+              <div>
+                <h2>Agenda jurídica</h2>
+                <p>Audiências, perícias, reuniões, diligências e compromissos do escritório.</p>
+              </div>
+              <button id="newEventBtn" class="btn" type="button">Novo compromisso</button>
+            </div>
+            <div class="toolbar">
+              <div class="filters">
+                <select id="agendaFilter">
+                  <option value="upcoming">Próximos</option>
+                  <option value="today">Hoje</option>
+                  <option value="all">Todos</option>
+                </select>
+              </div>
+              <span id="agendaCount" class="small"></span>
+            </div>
+            <div class="card panel">
+              <div id="agendaList" class="timeline"></div>
+            </div>
+          </section>
+
+          <section id="section-tasks" class="section">
+            <div class="page-head">
+              <div>
+                <h2>Tarefas</h2>
+                <p>Organize atividades internas por status, prioridade e vencimento.</p>
+              </div>
+              <button id="newTaskBtn" class="btn" type="button">Nova tarefa</button>
+            </div>
+            <div class="toolbar">
+              <div class="filters">
+                <div class="search"><input id="taskSearch" type="search" placeholder="Buscar tarefa, cliente ou processo" /></div>
+                <select id="taskFilter">
+                  <option value="open">Abertas</option>
+                  <option value="overdue">Atrasadas</option>
+                  <option value="all">Todas</option>
+                  <option value="completed">Concluídas</option>
+                </select>
+              </div>
+              <span id="taskCount" class="small"></span>
+            </div>
+            <div class="card table-card">
+              <div class="tablewrap">
+                <table>
+                  <thead><tr><th>Tarefa</th><th>Cliente / Processo</th><th>Vencimento</th><th>Prioridade</th><th>Status</th><th></th></tr></thead>
+                  <tbody id="tasksBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <section id="section-finance" class="section">
+            <div class="page-head">
+              <div>
+                <h2>Financeiro</h2>
+                <p>Honorários, êxito, custas, despesas e repasses vinculados ao cliente e processo.</p>
+              </div>
+              <button id="newFinanceBtn" class="btn" type="button">Novo lançamento</button>
+            </div>
+            <div class="metrics finance-metrics">
+              <div class="card metric"><div class="metric-label"><span>A receber</span></div><b id="fPending">R$ 0,00</b></div>
+              <div class="card metric"><div class="metric-label"><span>Recebido</span></div><b id="fPaid">R$ 0,00</b></div>
+              <div class="card metric"><div class="metric-label"><span>Vencido</span></div><b id="fOverdue">R$ 0,00</b></div>
+            </div>
+            <div class="toolbar">
+              <div class="filters">
+                <div class="search"><input id="financeSearch" type="search" placeholder="Buscar lançamento ou cliente" /></div>
+                <select id="financeFilter">
+                  <option value="all">Todos</option>
+                  <option value="pending">Pendentes</option>
+                  <option value="paid">Pagos</option>
+                  <option value="overdue">Vencidos</option>
+                </select>
+              </div>
+              <span id="financeCount" class="small"></span>
+            </div>
+            <div class="card table-card">
+              <div class="tablewrap">
+                <table>
+                  <thead><tr><th>Lançamento</th><th>Cliente</th><th>Valor</th><th>Vencimento</th><th>Status</th><th></th></tr></thead>
+                  <tbody id="financeBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <section id="section-crm" class="section">
+            <div class="page-head">
+              <div>
+                <h2>CRM jurídico</h2>
+                <p>Acompanhe interessados desde o primeiro contato até se tornarem clientes.</p>
+              </div>
+              <button id="newLeadBtn" class="btn" type="button">Novo interessado</button>
+            </div>
+            <div class="toolbar">
+              <div class="filters">
+                <div class="search"><input id="leadSearch" type="search" placeholder="Buscar nome, telefone ou origem" /></div>
+                <select id="leadFilter">
+                  <option value="all">Todos os estágios</option>
+                  <option value="lead">Interessado</option>
+                  <option value="consultation">Consulta</option>
+                  <option value="proposal">Proposta</option>
+                  <option value="contracted">Contratado</option>
+                  <option value="lost">Perdido</option>
+                </select>
+              </div>
+              <span id="leadCount" class="small"></span>
+            </div>
+            <div class="card table-card">
+              <div class="tablewrap">
+                <table>
+                  <thead><tr><th>Interessado</th><th>Origem / Área</th><th>Próximo contato</th><th>Estágio</th><th>Potencial</th><th></th></tr></thead>
+                  <tbody id="leadsBody"></tbody>
                 </table>
               </div>
             </div>
@@ -406,6 +581,48 @@
           </select>
         </div>
 
+
+        <div class="full form-section">
+          <div class="form-section-title">Dados pessoais</div>
+          <p>Informações para identificação, contratos e documentos.</p>
+        </div>
+        <div>
+          <label for="cCpfCnpj">CPF / CNPJ</label>
+          <input id="cCpfCnpj" autocomplete="off" placeholder="CPF ou CNPJ" />
+        </div>
+        <div>
+          <label for="cRg">RG</label>
+          <input id="cRg" autocomplete="off" placeholder="RG" />
+        </div>
+        <div>
+          <label for="cBirth">Data de nascimento</label>
+          <input id="cBirth" type="date" />
+        </div>
+        <div>
+          <label for="cProfession">Profissão</label>
+          <input id="cProfession" placeholder="Profissão" />
+        </div>
+        <div>
+          <label for="cMarital">Estado civil</label>
+          <input id="cMarital" placeholder="Ex.: Casado(a)" />
+        </div>
+        <div>
+          <label for="cPostalCode">CEP</label>
+          <input id="cPostalCode" placeholder="00000-000" />
+        </div>
+        <div class="full">
+          <label for="cAddress">Endereço</label>
+          <input id="cAddress" placeholder="Rua, número, complemento e bairro" />
+        </div>
+        <div>
+          <label for="cCity">Cidade</label>
+          <input id="cCity" placeholder="Cidade" />
+        </div>
+        <div>
+          <label for="cStateCode">UF</label>
+          <input id="cStateCode" maxlength="2" placeholder="SP" />
+        </div>
+
         <div class="full form-section">
           <div class="form-section-title">Dados bancários</div>
           <p>Informações bancárias do cliente para pagamentos e repasses.</p>
@@ -466,7 +683,24 @@
         </div>
         <div>
           <label for="caseType">Tipo</label>
-          <input id="caseType" placeholder="Trabalhista, Cível..." />
+          <input id="caseType" placeholder="Ação, recurso, execução..." />
+        </div>
+        <div>
+          <label for="caseLegalArea">Área jurídica</label>
+          <input id="caseLegalArea" placeholder="Trabalhista, Cível, Família..." />
+        </div>
+        <div>
+          <label for="caseValue">Valor da causa</label>
+          <input id="caseValue" type="number" min="0" step="0.01" placeholder="0,00" />
+        </div>
+        <div>
+          <label for="casePriority">Prioridade</label>
+          <select id="casePriority">
+            <option value="low">Baixa</option>
+            <option value="normal">Normal</option>
+            <option value="high">Alta</option>
+            <option value="urgent">Urgente</option>
+          </select>
         </div>
         <div>
           <label for="caseClaimant">Reclamante</label>
@@ -524,6 +758,115 @@
         <button id="caseSaveBtn" class="btn">Cadastrar processo</button>
       </div>
       <div id="caseStatusMsg" class="status"></div>
+    </form>
+  </dialog>
+
+
+  <dialog id="deadlineDialog">
+    <form id="deadlineForm" class="modal">
+      <div class="modal-head">
+        <div><h3 id="deadlineDialogTitle">Novo prazo</h3><p>Registre o vencimento e a prioridade.</p></div>
+        <button class="btn ghost close-x" type="button" data-close>×</button>
+      </div>
+      <div class="modal-grid">
+        <div class="full"><label for="deadlineTitle">Prazo</label><input id="deadlineTitle" required placeholder="Ex.: Apresentar contestação" /></div>
+        <div><label for="deadlineCase">Processo</label><select id="deadlineCase"></select></div>
+        <div><label for="deadlineClient">Cliente</label><select id="deadlineClient"></select></div>
+        <div><label for="deadlineType">Tipo</label><select id="deadlineType"><option value="processual">Processual</option><option value="appeal">Recurso</option><option value="administrative">Administrativo</option><option value="internal">Interno</option><option value="hearing">Audiência</option><option value="other">Outro</option></select></div>
+        <div><label for="deadlineDue">Vencimento</label><input id="deadlineDue" type="datetime-local" required /></div>
+        <div><label for="deadlinePriority">Prioridade</label><select id="deadlinePriority"><option value="normal">Normal</option><option value="high">Alta</option><option value="urgent">Urgente</option><option value="low">Baixa</option></select></div>
+        <div><label for="deadlineStatus">Status</label><select id="deadlineStatus"><option value="pending">Pendente</option><option value="in_progress">Em andamento</option><option value="completed">Concluído</option><option value="cancelled">Cancelado</option></select></div>
+        <div class="full"><label for="deadlineSource">Origem</label><input id="deadlineSource" placeholder="Ex.: DJEN, intimação, cliente, controle interno" /></div>
+        <div class="full"><label for="deadlineNotes">Observações</label><textarea id="deadlineNotes" placeholder="Detalhes importantes do prazo"></textarea></div>
+      </div>
+      <div class="modal-actions"><button class="btn secondary" type="button" data-close>Cancelar</button><button id="deadlineSaveBtn" class="btn">Salvar prazo</button></div>
+      <div id="deadlineStatusMsg" class="status"></div>
+    </form>
+  </dialog>
+
+  <dialog id="taskDialog">
+    <form id="taskForm" class="modal">
+      <div class="modal-head">
+        <div><h3 id="taskDialogTitle">Nova tarefa</h3><p>Organize atividades do escritório.</p></div>
+        <button class="btn ghost close-x" type="button" data-close>×</button>
+      </div>
+      <div class="modal-grid">
+        <div class="full"><label for="taskTitle">Tarefa</label><input id="taskTitle" required placeholder="Ex.: Conferir documentos do cliente" /></div>
+        <div><label for="taskCase">Processo</label><select id="taskCase"></select></div>
+        <div><label for="taskClient">Cliente</label><select id="taskClient"></select></div>
+        <div><label for="taskDue">Vencimento</label><input id="taskDue" type="datetime-local" /></div>
+        <div><label for="taskPriority">Prioridade</label><select id="taskPriority"><option value="normal">Normal</option><option value="high">Alta</option><option value="urgent">Urgente</option><option value="low">Baixa</option></select></div>
+        <div><label for="taskStatus">Status</label><select id="taskStatus"><option value="todo">A fazer</option><option value="in_progress">Em andamento</option><option value="waiting">Aguardando</option><option value="completed">Concluída</option><option value="cancelled">Cancelada</option></select></div>
+        <div class="full"><label for="taskDescription">Descrição</label><textarea id="taskDescription" placeholder="Detalhes da atividade"></textarea></div>
+      </div>
+      <div class="modal-actions"><button class="btn secondary" type="button" data-close>Cancelar</button><button id="taskSaveBtn" class="btn">Salvar tarefa</button></div>
+      <div id="taskStatusMsg" class="status"></div>
+    </form>
+  </dialog>
+
+  <dialog id="eventDialog">
+    <form id="eventForm" class="modal">
+      <div class="modal-head">
+        <div><h3 id="eventDialogTitle">Novo compromisso</h3><p>Audiência, perícia, reunião ou diligência.</p></div>
+        <button class="btn ghost close-x" type="button" data-close>×</button>
+      </div>
+      <div class="modal-grid">
+        <div class="full"><label for="eventTitle">Título</label><input id="eventTitle" required placeholder="Ex.: Audiência de instrução" /></div>
+        <div><label for="eventType">Tipo</label><select id="eventType"><option value="hearing">Audiência</option><option value="expert_exam">Perícia</option><option value="meeting">Reunião</option><option value="court_visit">Diligência</option><option value="deadline">Prazo</option><option value="other">Outro</option></select></div>
+        <div><label for="eventStart">Início</label><input id="eventStart" type="datetime-local" required /></div>
+        <div><label for="eventEnd">Término</label><input id="eventEnd" type="datetime-local" /></div>
+        <div><label for="eventCase">Processo</label><select id="eventCase"></select></div>
+        <div><label for="eventClient">Cliente</label><select id="eventClient"></select></div>
+        <div><label for="eventModality">Modalidade</label><select id="eventModality"><option value="">Não informada</option><option value="presential">Presencial</option><option value="remote">Telepresencial</option><option value="hybrid">Híbrida</option></select></div>
+        <div><label for="eventLocation">Local / link</label><input id="eventLocation" placeholder="Fórum, endereço ou link da sala" /></div>
+        <div class="full"><label for="eventNotes">Observações</label><textarea id="eventNotes"></textarea></div>
+      </div>
+      <div class="modal-actions"><button class="btn secondary" type="button" data-close>Cancelar</button><button id="eventSaveBtn" class="btn">Salvar compromisso</button></div>
+      <div id="eventStatusMsg" class="status"></div>
+    </form>
+  </dialog>
+
+  <dialog id="financeDialog">
+    <form id="financeForm" class="modal">
+      <div class="modal-head">
+        <div><h3 id="financeDialogTitle">Novo lançamento</h3><p>Registre honorários, despesas e repasses.</p></div>
+        <button class="btn ghost close-x" type="button" data-close>×</button>
+      </div>
+      <div class="modal-grid">
+        <div class="full"><label for="financeDescription">Descrição</label><input id="financeDescription" required placeholder="Ex.: Parcela 1 - contrato de honorários" /></div>
+        <div><label for="financeType">Tipo</label><select id="financeType"><option value="fee">Honorários</option><option value="success_fee">Honorários de êxito</option><option value="cost">Custas</option><option value="expense">Despesa</option><option value="client_transfer">Repasse ao cliente</option><option value="other_receivable">Outro recebimento</option><option value="other_payable">Outro pagamento</option></select></div>
+        <div><label for="financeAmount">Valor</label><input id="financeAmount" type="number" min="0" step="0.01" required placeholder="0,00" /></div>
+        <div><label for="financeClient">Cliente</label><select id="financeClient"></select></div>
+        <div><label for="financeCase">Processo</label><select id="financeCase"></select></div>
+        <div><label for="financeDue">Vencimento</label><input id="financeDue" type="date" /></div>
+        <div><label for="financeStatus">Status</label><select id="financeStatus"><option value="pending">Pendente</option><option value="paid">Pago</option><option value="overdue">Vencido</option><option value="cancelled">Cancelado</option></select></div>
+        <div><label for="financeMethod">Forma de pagamento</label><select id="financeMethod"><option value="">Não informada</option><option value="pix">PIX</option><option value="bank_transfer">Transferência</option><option value="cash">Dinheiro</option><option value="credit">Crédito</option><option value="debit">Débito</option><option value="boleto">Boleto</option><option value="other">Outra</option></select></div>
+        <div class="full"><label for="financeNotes">Observações</label><textarea id="financeNotes"></textarea></div>
+      </div>
+      <div class="modal-actions"><button class="btn secondary" type="button" data-close>Cancelar</button><button id="financeSaveBtn" class="btn">Salvar lançamento</button></div>
+      <div id="financeStatusMsg" class="status"></div>
+    </form>
+  </dialog>
+
+  <dialog id="leadDialog">
+    <form id="leadForm" class="modal">
+      <div class="modal-head">
+        <div><h3 id="leadDialogTitle">Novo interessado</h3><p>Registre o contato antes da contratação.</p></div>
+        <button class="btn ghost close-x" type="button" data-close>×</button>
+      </div>
+      <div class="modal-grid">
+        <div class="full"><label for="leadName">Nome</label><input id="leadName" required placeholder="Nome do interessado" /></div>
+        <div><label for="leadPhone">Telefone / WhatsApp</label><input id="leadPhone" /></div>
+        <div><label for="leadEmail">E-mail</label><input id="leadEmail" type="email" /></div>
+        <div><label for="leadSource">Origem</label><input id="leadSource" placeholder="Indicação, Instagram, Google..." /></div>
+        <div><label for="leadArea">Área jurídica</label><input id="leadArea" placeholder="Trabalhista, Cível..." /></div>
+        <div><label for="leadStage">Estágio</label><select id="leadStage"><option value="lead">Interessado</option><option value="consultation">Consulta</option><option value="proposal">Proposta</option><option value="contracted">Contratado</option><option value="lost">Perdido</option></select></div>
+        <div><label for="leadValue">Potencial</label><input id="leadValue" type="number" min="0" step="0.01" /></div>
+        <div><label for="leadNextContact">Próximo contato</label><input id="leadNextContact" type="datetime-local" /></div>
+        <div class="full"><label for="leadNotes">Observações</label><textarea id="leadNotes"></textarea></div>
+      </div>
+      <div class="modal-actions"><button class="btn secondary" type="button" data-close>Cancelar</button><button id="leadSaveBtn" class="btn">Salvar interessado</button></div>
+      <div id="leadStatusMsg" class="status"></div>
     </form>
   </dialog>
 
