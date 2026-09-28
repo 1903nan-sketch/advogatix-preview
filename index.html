@@ -115,6 +115,7 @@
             <button data-section="tasks">Tarefas</button>
             <button data-section="finance">Financeiro</button>
             <button data-section="crm">CRM</button>
+            <button data-section="reports">Relatórios</button>
             <button data-section="movements">Movimentações</button>
             <button data-section="messages">Mensagens</button>
             <button data-section="settings">Configurações</button>
@@ -433,6 +434,43 @@
                   <thead><tr><th>Interessado</th><th>Origem / Área</th><th>Próximo contato</th><th>Estágio</th><th>Potencial</th><th></th></tr></thead>
                   <tbody id="leadsBody"></tbody>
                 </table>
+              </div>
+            </div>
+
+            <div class="card panel" style="margin-top:12px">
+              <h3>Busca de conflito de interesses</h3>
+              <p class="muted">Pesquise nomes de pessoas ou empresas antes de aceitar um novo caso.</p>
+              <div class="search" style="margin-top:10px"><input id="conflictSearch" type="search" placeholder="Nome da pessoa, empresa ou parte adversa" /></div>
+              <div id="conflictResults" class="timeline" style="margin-top:12px"></div>
+            </div>
+          </section>
+
+          <section id="section-reports" class="section">
+            <div class="page-head">
+              <div>
+                <h2>Relatórios</h2>
+                <p>Visão operacional, financeira e comercial do escritório.</p>
+              </div>
+              <button id="printReportBtn" class="btn secondary" type="button">Imprimir / salvar PDF</button>
+            </div>
+
+            <div class="metrics">
+              <div class="card metric"><div class="metric-label"><span>Clientes ativos</span></div><b id="rClients">0</b></div>
+              <div class="card metric"><div class="metric-label"><span>Processos ativos</span></div><b id="rCases">0</b></div>
+              <div class="card metric"><div class="metric-label"><span>Prazos vencidos</span></div><b id="rDeadlines">0</b></div>
+              <div class="card metric"><div class="metric-label"><span>Tarefas atrasadas</span></div><b id="rTasks">0</b></div>
+              <div class="card metric"><div class="metric-label"><span>A receber</span></div><b id="rReceivable">R$ 0,00</b></div>
+              <div class="card metric"><div class="metric-label"><span>Recebido</span></div><b id="rPaid">R$ 0,00</b></div>
+            </div>
+
+            <div class="dashboard-grid">
+              <div class="card panel">
+                <h3>Processos que pedem atenção</h3>
+                <div id="reportCasesAttention" class="timeline"></div>
+              </div>
+              <div class="card panel">
+                <h3>Funil comercial</h3>
+                <div id="reportLeadFunnel" class="timeline"></div>
               </div>
             </div>
           </section>
@@ -761,6 +799,97 @@
     </form>
   </dialog>
 
+
+
+  <dialog id="clientFileDialog">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <h3 id="clientFileTitle">Ficha do cliente</h3>
+          <p id="clientFileSubtitle">Visão consolidada do relacionamento com o escritório.</p>
+        </div>
+        <button class="btn ghost close-x" type="button" data-close>×</button>
+      </div>
+
+      <div id="clientFileSummary" class="metrics" style="margin-bottom:14px"></div>
+
+      <div class="card panel" style="box-shadow:none;margin-bottom:12px">
+        <h3>Registrar atendimento</h3>
+        <form id="interactionForm">
+          <div class="modal-grid">
+            <div>
+              <label for="interactionType">Tipo</label>
+              <select id="interactionType">
+                <option value="whatsapp">WhatsApp</option>
+                <option value="call">Ligação</option>
+                <option value="meeting">Reunião</option>
+                <option value="email">E-mail</option>
+                <option value="note">Nota interna</option>
+              </select>
+            </div>
+            <div>
+              <label for="interactionCase">Processo</label>
+              <select id="interactionCase"></select>
+            </div>
+            <div class="full">
+              <label for="interactionSummary">Resumo</label>
+              <textarea id="interactionSummary" required placeholder="O que foi tratado com o cliente?"></textarea>
+            </div>
+            <div>
+              <label for="interactionFollowUp">Próximo retorno</label>
+              <input id="interactionFollowUp" type="datetime-local" />
+            </div>
+          </div>
+          <div class="modal-actions"><button id="interactionSaveBtn" class="btn">Registrar atendimento</button></div>
+          <div id="interactionStatusMsg" class="status"></div>
+        </form>
+      </div>
+
+      <div class="card panel" style="box-shadow:none">
+        <h3>Histórico de atendimento</h3>
+        <div id="clientInteractionList" class="timeline"></div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="caseWorkspaceDialog">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <h3 id="caseWorkspaceTitle">Processo</h3>
+          <p id="caseWorkspaceSubtitle">Checklist, prazos e tarefas do processo.</p>
+        </div>
+        <button class="btn ghost close-x" type="button" data-close>×</button>
+      </div>
+
+      <div id="caseHealthBox" class="notice" style="margin-bottom:12px"></div>
+
+      <div class="card panel" style="box-shadow:none;margin-bottom:12px">
+        <h3>Checklist processual</h3>
+        <form id="checklistForm">
+          <div class="modal-grid">
+            <div class="full"><label for="checklistLabel">Item</label><input id="checklistLabel" required placeholder="Ex.: Procuração assinada" /></div>
+            <div><label for="checklistDue">Prazo interno</label><input id="checklistDue" type="datetime-local" /></div>
+            <div><label for="checklistRequired">Obrigatório</label><select id="checklistRequired"><option value="true">Sim</option><option value="false">Não</option></select></div>
+          </div>
+          <div class="modal-actions"><button id="checklistSaveBtn" class="btn">Adicionar item</button></div>
+          <div id="checklistStatusMsg" class="status"></div>
+        </form>
+        <div id="caseChecklistList" class="timeline" style="margin-top:14px"></div>
+      </div>
+
+      <div class="dashboard-grid">
+        <div class="card panel" style="box-shadow:none">
+          <h3>Prazos deste processo</h3>
+          <div id="caseDeadlineList" class="timeline"></div>
+        </div>
+        <div class="card panel" style="box-shadow:none">
+          <h3>Tarefas deste processo</h3>
+          <div id="caseTaskList" class="timeline"></div>
+        </div>
+      </div>
+    </div>
+  </dialog>
 
   <dialog id="deadlineDialog">
     <form id="deadlineForm" class="modal">
