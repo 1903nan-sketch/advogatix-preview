@@ -114,6 +114,7 @@
             <button data-section="agenda">Agenda</button>
             <button data-section="tasks">Tarefas</button>
             <button data-section="finance">Financeiro</button>
+            <button data-section="documents">Documentos</button>
             <button data-section="crm">CRM</button>
             <button data-section="reports">Relatórios</button>
             <button data-section="movements">Movimentações</button>
@@ -401,6 +402,43 @@
                 <table>
                   <thead><tr><th>Lançamento</th><th>Cliente</th><th>Valor</th><th>Vencimento</th><th>Status</th><th></th></tr></thead>
                   <tbody id="financeBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+
+          <section id="section-documents" class="section">
+            <div class="page-head">
+              <div>
+                <h2>Documentos</h2>
+                <p>Arquivos privados organizados por processo.</p>
+              </div>
+              <button id="newDocumentBtn" class="btn" type="button">Enviar documento</button>
+            </div>
+
+            <div class="toolbar">
+              <div class="filters">
+                <div class="search"><input id="documentSearch" type="search" placeholder="Buscar documento, cliente ou processo" /></div>
+                <select id="documentTypeFilter">
+                  <option value="all">Todos os tipos</option>
+                  <option value="procuração">Procuração</option>
+                  <option value="contrato">Contrato</option>
+                  <option value="petição">Petição</option>
+                  <option value="decisão">Decisão</option>
+                  <option value="documento_pessoal">Documento pessoal</option>
+                  <option value="comprovante">Comprovante</option>
+                  <option value="outro">Outro</option>
+                </select>
+              </div>
+              <span id="documentCount" class="small"></span>
+            </div>
+
+            <div class="card table-card">
+              <div class="tablewrap">
+                <table>
+                  <thead><tr><th>Documento</th><th>Cliente / Processo</th><th>Tipo</th><th>Tamanho</th><th>Enviado em</th><th></th></tr></thead>
+                  <tbody id="documentsBody"></tbody>
                 </table>
               </div>
             </div>
@@ -800,6 +838,25 @@
   </dialog>
 
 
+
+
+  <dialog id="documentDialog">
+    <form id="documentForm" class="modal">
+      <div class="modal-head">
+        <div><h3>Enviar documento</h3><p>O arquivo ficará no armazenamento privado do escritório.</p></div>
+        <button class="btn ghost close-x" type="button" data-close>×</button>
+      </div>
+      <div class="modal-grid">
+        <div class="full"><label for="documentCase">Processo</label><select id="documentCase" required></select></div>
+        <div><label for="documentType">Tipo</label><select id="documentType"><option value="procuração">Procuração</option><option value="contrato">Contrato</option><option value="petição">Petição</option><option value="decisão">Decisão</option><option value="documento_pessoal">Documento pessoal</option><option value="comprovante">Comprovante</option><option value="outro">Outro</option></select></div>
+        <div><label for="documentFile">Arquivo</label><input id="documentFile" type="file" required accept=".pdf,.jpg,.jpeg,.png,.webp,.txt,.doc,.docx" /></div>
+        <div class="full"><label for="documentNotes">Observações</label><textarea id="documentNotes" placeholder="Observações internas sobre o arquivo"></textarea></div>
+      </div>
+      <div class="notice" style="margin-top:12px">Arquivos privados • limite de 25 MB • acesso restrito aos membros autorizados do escritório.</div>
+      <div class="modal-actions"><button class="btn secondary" type="button" data-close>Cancelar</button><button id="documentUploadBtn" class="btn">Enviar arquivo</button></div>
+      <div id="documentStatusMsg" class="status"></div>
+    </form>
+  </dialog>
 
   <dialog id="clientFileDialog">
     <div class="modal">
