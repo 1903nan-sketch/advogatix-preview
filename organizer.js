@@ -3,7 +3,7 @@
   if (!core) return;
 
   const {
-    supabase, state, $, $$, esc, norm, brDate, toIso, toLocalInput,
+    supabase, state, $, $$, esc, norm, brDate, toIso, toLocalInput, dateKey,
     toast, setStatus, setBusy, openDialog, closeDialog, badge,
     clientById, caseById
   } = core;
@@ -22,31 +22,37 @@
   const leadStatusLabels = { lead: "Interessado", consultation: "Consulta", proposal: "Proposta", contracted: "Contratado", lost: "Perdido" };
   const payableTypes = new Set(["cost", "expense", "client_transfer", "other_payable"]);
 
+  function financeIsReceivable(item) {
+    return !payableTypes.has(item.entry_type);
+  }
+
   function money(value) {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
   }
 
-  function localDateKey(value) {
-    if (!value) return "";
-    const d = new Date(value);
-    const parts = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit"
-    }).formatToParts(d);
-    const get = (type) => parts.find((p) => p.type === type)?.value || "";
-    return get("year") + "-" + get("month") + "-" + get("day");
+  // Soma em centavos para evitar erros de arredondamento de ponto flutuante.
+  function sumAmounts(list) {
+    return list.reduce((cents, x) => cents + Math.round(Number(x.amount || 0) * 100), 0) / 100;
   }
 
   function todayKey() {
-    return localDateKey(new Date());
+    return dateKey(new Date());
   }
 
   function isToday(value) {
-    return !!value && localDateKey(value) === todayKey();
+    return !!value && dateKey(value) === todayKey();
   }
 
+  // Prazos e tarefas têm data e hora: vencem assim que o horário passa.
   function isOverdue(value, status) {
     if (!value || ["completed", "cancelled", "paid"].includes(status)) return false;
-    return new Date(value).getTime() < Date.now() && !isToday(value);
+    return new Date(value).getTime() < Date.now();
+  }
+
+  // Mantém a data original de conclusão/pagamento ao editar um item já concluído.
+  function keepTimestamp(item, field, active) {
+    if (!active) return null;
+    return item?.[field] || new Date().toISOString();
   }
 
   function dueClass(value, status) {
@@ -59,7 +65,7 @@
     const empty = allowEmpty ? '<option value="">Sem cliente</option>' : "";
     return empty + state.clients
       .filter((c) => c.status === "active" || c.id === selected)
-      .map((c) => '<option value="' + c.id + '"' + (c.id === selected ? " selected" : "") + ">" + esc(c.full_name) + "</option>")
+      .map((c) => '<option value="' + esc(c.id) + '"' + (c.id === selected ? " selected" : "") + ">" + esc(c.full_name) + "</option>")
       .join("");
   }
 
@@ -70,7 +76,7 @@
       .map((c) => {
         const client = clientById(c.client_id);
         const num = c.process_number ? " — " + c.process_number : "";
-        return '<option value="' + c.id + '"' + (c.id === selected ? " selected" : "") + ">" +
+        return '<option value="' + esc(c.id) + '"' + (c.id === selected ? " selected" : "") + ">" +
           esc(client?.full_name || "Cliente") + " — " + esc(c.title) + esc(num) + "</option>";
       }).join("");
   }
@@ -127,6 +133,7 @@
     const button = event.submitter;
     setBusy(button, true, "Salvando");
     const status = $("#deadlineStatus").value;
+    const current = state.editingDeadlineId ? state.deadlines.find((x) => x.id === state.editingDeadlineId) : null;
     const payload = {
       title: $("#deadlineTitle").value.trim(),
       case_id: $("#deadlineCase").value || null,
@@ -137,7 +144,7 @@
       status,
       source: $("#deadlineSource").value.trim() || null,
       notes: $("#deadlineNotes").value.trim() || null,
-      completed_at: status === "completed" ? new Date().toISOString() : null
+      completed_at: keepTimestamp(current, "completed_at", status === "completed")
     };
     try {
       if (state.editingDeadlineId) {
@@ -203,6 +210,7 @@
     const button = event.submitter;
     setBusy(button, true, "Salvando");
     const status = $("#taskStatus").value;
+    const current = state.editingTaskId ? state.tasks.find((x) => x.id === state.editingTaskId) : null;
     const payload = {
       title: $("#taskTitle").value.trim(),
       description: $("#taskDescription").value.trim() || null,
@@ -211,8 +219,8 @@
       due_at: toIso($("#taskDue").value),
       priority: $("#taskPriority").value,
       status,
-      assigned_to: state.user.id,
-      completed_at: status === "completed" ? new Date().toISOString() : null
+      assigned_to: current ? (current.assigned_to ?? state.user.id) : state.user.id,
+      completed_at: keepTimestamp(current, "completed_at", status === "completed")
     };
     try {
       if (state.editingTaskId) {
@@ -278,18 +286,25 @@
   $("#eventForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const button = event.submitter;
+    const startIso = toIso($("#eventStart").value);
+    const endIso = toIso($("#eventEnd").value);
+    if (startIso && endIso && new Date(endIso) < new Date(startIso)) {
+      setStatus($("#eventStatusMsg"), "O término não pode ser antes do início.", "err");
+      return;
+    }
+    const current = state.editingEventId ? state.calendarEvents.find((x) => x.id === state.editingEventId) : null;
     setBusy(button, true, "Salvando");
     const payload = {
       title: $("#eventTitle").value.trim(),
       event_type: $("#eventType").value,
-      start_at: toIso($("#eventStart").value),
-      end_at: toIso($("#eventEnd").value),
+      start_at: startIso,
+      end_at: endIso,
       case_id: $("#eventCase").value || null,
       client_id: $("#eventClient").value || null,
       modality: $("#eventModality").value || null,
       location: $("#eventLocation").value.trim() || null,
       notes: $("#eventNotes").value.trim() || null,
-      responsible_user_id: state.user.id
+      responsible_user_id: current ? (current.responsible_user_id ?? state.user.id) : state.user.id
     };
     try {
       if (state.editingEventId) {
@@ -339,17 +354,23 @@
   $("#financeForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const button = event.submitter;
+    const amount = Math.round(Number($("#financeAmount").value || 0) * 100) / 100;
+    if (!(amount > 0)) {
+      setStatus($("#financeStatusMsg"), "Informe um valor maior que zero.", "err");
+      return;
+    }
     setBusy(button, true, "Salvando");
     const status = $("#financeStatus").value;
+    const current = state.editingFinanceId ? state.financialEntries.find((x) => x.id === state.editingFinanceId) : null;
     const payload = {
       description: $("#financeDescription").value.trim(),
       entry_type: $("#financeType").value,
-      amount: Number($("#financeAmount").value || 0),
+      amount,
       client_id: $("#financeClient").value || null,
       case_id: $("#financeCase").value || null,
       due_date: $("#financeDue").value || null,
       status,
-      paid_at: status === "paid" ? new Date().toISOString() : null,
+      paid_at: keepTimestamp(current, "paid_at", status === "paid"),
       payment_method: $("#financeMethod").value || null,
       notes: $("#financeNotes").value.trim() || null
     };
@@ -476,13 +497,11 @@
         '<td>' + badge(priorityLabels[item.priority] || item.priority, priorityTypes[item.priority] || "") + '</td>' +
         '<td>' + badge(deadlineStatusLabels[item.status] || item.status, statusType) + '</td>' +
         '<td><div class="row-actions">' +
-          (!["completed","cancelled"].includes(item.status) ? '<button class="btn ghost sm" data-complete-deadline="' + item.id + '">Concluir</button>' : "") +
-          '<button class="btn secondary sm" data-edit-deadline="' + item.id + '">Editar</button>' +
+          (!["completed","cancelled"].includes(item.status) ? '<button class="btn ghost sm" data-complete-deadline="' + esc(item.id) + '">Concluir</button>' : "") +
+          '<button class="btn secondary sm" data-edit-deadline="' + esc(item.id) + '">Editar</button>' +
         '</div></td></tr>';
     }).join("") : '<tr><td colspan="6" class="empty">Nenhum prazo encontrado.</td></tr>';
 
-    $$("[data-edit-deadline]").forEach((b) => b.addEventListener("click", () => openDeadlineDialog(b.dataset.editDeadline)));
-    $$("[data-complete-deadline]").forEach((b) => b.addEventListener("click", () => completeDeadline(b.dataset.completeDeadline, b)));
   }
 
   function renderTasks() {
@@ -511,13 +530,11 @@
         '<td>' + badge(priorityLabels[item.priority] || item.priority, priorityTypes[item.priority] || "") + '</td>' +
         '<td>' + badge(taskStatusLabels[item.status] || item.status, statusType) + '</td>' +
         '<td><div class="row-actions">' +
-          (!["completed","cancelled"].includes(item.status) ? '<button class="btn ghost sm" data-complete-task="' + item.id + '">Concluir</button>' : "") +
-          '<button class="btn secondary sm" data-edit-task="' + item.id + '">Editar</button>' +
+          (!["completed","cancelled"].includes(item.status) ? '<button class="btn ghost sm" data-complete-task="' + esc(item.id) + '">Concluir</button>' : "") +
+          '<button class="btn secondary sm" data-edit-task="' + esc(item.id) + '">Editar</button>' +
         '</div></td></tr>';
     }).join("") : '<tr><td colspan="6" class="empty">Nenhuma tarefa encontrada.</td></tr>';
 
-    $$("[data-edit-task]").forEach((b) => b.addEventListener("click", () => openTaskDialog(b.dataset.editTask)));
-    $$("[data-complete-task]").forEach((b) => b.addEventListener("click", () => completeTask(b.dataset.completeTask, b)));
   }
 
   function renderAgenda() {
@@ -538,34 +555,45 @@
       return '<div class="' + cls + '">' +
         '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">' +
           '<div><strong>' + esc(item.title) + '</strong><small>' + esc(eventTypeLabels[item.event_type] || item.event_type) + ' • ' + brDate(item.start_at) + '</small></div>' +
-          '<button class="btn secondary sm" data-edit-event="' + item.id + '">Editar</button>' +
+          '<button class="btn secondary sm" data-edit-event="' + esc(item.id) + '">Editar</button>' +
         '</div>' +
         (detail ? '<p>' + esc(detail) + '</p>' : "") +
       '</div>';
     }).join("") : '<div class="empty">Nenhum compromisso encontrado.</div>';
-
-    $$("[data-edit-event]").forEach((b) => b.addEventListener("click", () => openEventDialog(b.dataset.editEvent)));
   }
 
+  // Lançamento pendente vira "vencido" a partir do dia seguinte ao vencimento (horário de Brasília).
   function effectiveFinanceStatus(item) {
-    if (item.status === "pending" && item.due_date) {
-      const due = item.due_date + "T23:59:59";
-      if (new Date(due).getTime() < Date.now() && !isToday(due)) return "overdue";
-    }
+    if (item.status === "pending" && item.due_date && String(item.due_date).slice(0, 10) < todayKey()) return "overdue";
     return item.status;
+  }
+
+  function financeTotals(list) {
+    const open = (x) => ["pending", "overdue"].includes(effectiveFinanceStatus(x));
+    const receivables = list.filter(financeIsReceivable);
+    const payables = list.filter((x) => !financeIsReceivable(x));
+    const received = sumAmounts(receivables.filter((x) => x.status === "paid"));
+    const paidOut = sumAmounts(payables.filter((x) => x.status === "paid"));
+    return {
+      receivable: sumAmounts(receivables.filter(open)),
+      receivableOverdue: sumAmounts(receivables.filter((x) => effectiveFinanceStatus(x) === "overdue")),
+      received,
+      payable: sumAmounts(payables.filter(open)),
+      paidOut,
+      balance: Math.round((received - paidOut) * 100) / 100
+    };
   }
 
   function renderFinance() {
     const query = norm($("#financeSearch")?.value || "");
     const filter = $("#financeFilter")?.value || "all";
 
-    const receivable = (item) => !payableTypes.has(item.entry_type);
-    const pending = state.financialEntries.filter((x) => receivable(x) && effectiveFinanceStatus(x) === "pending").reduce((a,x) => a + Number(x.amount || 0), 0);
-    const paid = state.financialEntries.filter((x) => receivable(x) && x.status === "paid").reduce((a,x) => a + Number(x.amount || 0), 0);
-    const overdue = state.financialEntries.filter((x) => receivable(x) && effectiveFinanceStatus(x) === "overdue").reduce((a,x) => a + Number(x.amount || 0), 0);
-    $("#fPending").textContent = money(pending);
-    $("#fPaid").textContent = money(paid);
-    $("#fOverdue").textContent = money(overdue);
+    const totals = financeTotals(state.financialEntries);
+    $("#fPending").textContent = money(totals.receivable);
+    $("#fOverdue").textContent = money(totals.receivableOverdue);
+    $("#fPaid").textContent = money(totals.received);
+    if ($("#fPayable")) $("#fPayable").textContent = money(totals.payable);
+    if ($("#fBalance")) $("#fBalance").textContent = money(totals.balance);
 
     const list = state.financialEntries.filter((item) => {
       const client = clientById(item.client_id);
@@ -588,13 +616,10 @@
         '<td>' + esc(item.due_date ? new Intl.DateTimeFormat("pt-BR").format(new Date(item.due_date + "T12:00:00")) : "—") + '</td>' +
         '<td>' + badge(financeStatusLabels[status] || status, statusType) + '</td>' +
         '<td><div class="row-actions">' +
-          (status !== "paid" && status !== "cancelled" ? '<button class="btn ghost sm" data-pay-finance="' + item.id + '">Dar baixa</button>' : "") +
-          '<button class="btn secondary sm" data-edit-finance="' + item.id + '">Editar</button>' +
+          (status !== "paid" && status !== "cancelled" ? '<button class="btn ghost sm" data-pay-finance="' + esc(item.id) + '">Dar baixa</button>' : "") +
+          '<button class="btn secondary sm" data-edit-finance="' + esc(item.id) + '">Editar</button>' +
         '</div></td></tr>';
     }).join("") : '<tr><td colspan="6" class="empty">Nenhum lançamento encontrado.</td></tr>';
-
-    $$("[data-edit-finance]").forEach((b) => b.addEventListener("click", () => openFinanceDialog(b.dataset.editFinance)));
-    $$("[data-pay-finance]").forEach((b) => b.addEventListener("click", () => markPaid(b.dataset.payFinance, b)));
   }
 
   function renderLeads() {
@@ -614,10 +639,12 @@
         '<td>' + (item.next_contact_at ? brDate(item.next_contact_at) : "—") + '</td>' +
         '<td>' + badge(leadStatusLabels[item.status] || item.status, statusType) + '</td>' +
         '<td>' + (item.potential_value != null ? money(item.potential_value) : "—") + '</td>' +
-        '<td><button class="btn secondary sm" data-edit-lead="' + item.id + '">Editar</button></td>' +
+        '<td><div class="row-actions">' +
+          (item.status === "contracted" ? '<button class="btn ghost sm" data-convert-lead="' + esc(item.id) + '">Virar cliente</button>' : "") +
+          '<button class="btn secondary sm" data-edit-lead="' + esc(item.id) + '">Editar</button>' +
+        '</div></td>' +
       '</tr>';
     }).join("") : '<tr><td colspan="6" class="empty">Nenhum interessado encontrado.</td></tr>';
-    $$("[data-edit-lead]").forEach((b) => b.addEventListener("click", () => openLeadDialog(b.dataset.editLead)));
   }
 
   function renderToday() {
@@ -630,17 +657,20 @@
     openDeadlines.filter((x) => isOverdue(x.due_at, x.status)).slice(0,4).forEach((x) => {
       items.push('<div class="event urgent"><strong>Prazo vencido: ' + esc(x.title) + '</strong><small>' + brDate(x.due_at) + '</small></div>');
     });
-    openDeadlines.filter((x) => isToday(x.due_at)).slice(0,4).forEach((x) => {
+    openDeadlines.filter((x) => isToday(x.due_at) && !isOverdue(x.due_at, x.status)).slice(0,4).forEach((x) => {
       items.push('<div class="event today"><strong>Prazo hoje: ' + esc(x.title) + '</strong><small>' + brDate(x.due_at) + '</small></div>');
     });
     openTasks.filter((x) => isOverdue(x.due_at, x.status)).slice(0,3).forEach((x) => {
       items.push('<div class="event urgent"><strong>Tarefa atrasada: ' + esc(x.title) + '</strong><small>' + (x.due_at ? brDate(x.due_at) : "") + '</small></div>');
     });
+    openTasks.filter((x) => isToday(x.due_at) && !isOverdue(x.due_at, x.status)).slice(0,4).forEach((x) => {
+      items.push('<div class="event today"><strong>Tarefa hoje: ' + esc(x.title) + '</strong><small>' + brDate(x.due_at) + '</small></div>');
+    });
     state.calendarEvents.filter((x) => isToday(x.start_at)).slice(0,4).forEach((x) => {
       items.push('<div class="event today"><strong>' + esc(eventTypeLabels[x.event_type] || "Compromisso") + ': ' + esc(x.title) + '</strong><small>' + brDate(x.start_at) + '</small></div>');
     });
 
-    $("#todayList").innerHTML = items.length ? items.join("") : '<div class="event ok"><strong>Agenda operacional em dia</strong><small>Nenhum prazo vencido, tarefa atrasada ou compromisso para hoje.</small></div>';
+    $("#todayList").innerHTML = items.length ? items.join("") : '<div class="event ok"><strong>Agenda operacional em dia</strong><small>Nenhum prazo ou tarefa pendente para hoje e nenhum compromisso agendado.</small></div>';
   }
 
 
@@ -718,11 +748,9 @@
         '<td>' + esc(item.category || "—") + '</td>' +
         '<td>' + badge(item.active ? "Ativo" : "Inativo", item.active ? "ok" : "") + '</td>' +
         '<td class="message-cell"><div class="message-preview">' + esc(preview) + '</div></td>' +
-        '<td><div class="row-actions"><button class="btn secondary sm" data-edit-template="' + item.id + '">Editar</button></div></td>' +
+        '<td><div class="row-actions"><button class="btn secondary sm" data-edit-template="' + esc(item.id) + '">Editar</button></div></td>' +
       '</tr>';
     }).join("") : '<tr><td colspan="6" class="empty">Nenhum modelo encontrado.</td></tr>';
-
-    $("[data-edit-template]").forEach((b) => b.addEventListener("click", () => openTemplateDialog(b.dataset.editTemplate)));
   }
 
   function formatBytes(bytes) {
@@ -826,12 +854,13 @@
     if (!confirm("Excluir este documento do AdvogaTix?")) return;
     setBusy(button, true, "Excluindo");
     try {
-      const { error: storageError } = await supabase.storage.from("case-documents").remove([doc.storage_path]);
-      if (storageError) throw storageError;
+      // Remove primeiro o registro: se falhar, o arquivo continua acessível pelo painel.
       const { error: dbError } = await supabase.from("documents").delete()
         .eq("id", doc.id).eq("firm_id", state.firm.id);
       if (dbError) throw dbError;
-      toast("Documento excluído.");
+      const { error: storageError } = await supabase.storage.from("case-documents").remove([doc.storage_path]);
+      if (storageError) toast("Registro excluído, mas o arquivo não pôde ser removido do armazenamento.", "err");
+      else toast("Documento excluído.");
       await core.loadData();
     } catch (error) {
       toast(error.message || "Não foi possível excluir o documento.", "err");
@@ -864,18 +893,12 @@
         '<td>' + esc(doc.document_type || "Outro") + '</td>' +
         '<td>' + esc(formatBytes(doc.size_bytes)) + '</td>' +
         '<td>' + brDate(doc.created_at) + '</td>' +
-        '<td><div class="row-actions"><button class="btn ghost sm" data-download-document="' + doc.id + '">Baixar</button>' +
-        (canDelete ? '<button class="btn secondary sm" data-delete-document="' + doc.id + '">Excluir</button>' : "") +
+        '<td><div class="row-actions"><button class="btn ghost sm" data-download-document="' + esc(doc.id) + '">Baixar</button>' +
+        (canDelete ? '<button class="btn secondary sm" data-delete-document="' + esc(doc.id) + '">Excluir</button>' : "") +
         '</div></td></tr>';
     }).join("") : '<tr><td colspan="6" class="empty">Nenhum documento encontrado.</td></tr>';
-
-    $("[data-download-document]").forEach((b) => b.addEventListener("click", () => downloadDocument(b.dataset.downloadDocument, b)));
-    $("[data-delete-document]").forEach((b) => b.addEventListener("click", () => deleteDocument(b.dataset.deleteDocument, b)));
   }
 
-  function financeIsReceivable(item) {
-    return !payableTypes.has(item.entry_type);
-  }
 
   function processHealth(item) {
     const deadlines = state.deadlines.filter((x) => x.case_id === item.id && !["completed","cancelled"].includes(x.status));
@@ -900,7 +923,7 @@
   }
 
   function renderCaseHealthBadges() {
-    $("[data-case-health]").forEach((el) => {
+    $$("[data-case-health]").forEach((el) => {
       const item = caseById(el.dataset.caseHealth);
       if (!item) return;
       const health = processHealth(item);
@@ -919,9 +942,7 @@
 
     const cases = state.cases.filter((x) => x.client_id === id);
     const openDeadlines = state.deadlines.filter((x) => x.client_id === id && !["completed","cancelled"].includes(x.status));
-    const receivable = state.financialEntries
-      .filter((x) => x.client_id === id && financeIsReceivable(x) && ["pending","overdue"].includes(effectiveFinanceStatus(x)))
-      .reduce((sum, x) => sum + Number(x.amount || 0), 0);
+    const receivable = financeTotals(state.financialEntries.filter((x) => x.client_id === id)).receivable;
     const nextFollowUp = client.next_follow_up_at ? brDate(client.next_follow_up_at) : "Sem retorno agendado";
 
     $("#clientFileSummary").innerHTML =
@@ -931,7 +952,7 @@
       '<div class="card metric"><div class="metric-label"><span>Próximo retorno</span></div><b style="font-size:16px">' + esc(nextFollowUp) + '</b></div>';
 
     $("#interactionCase").innerHTML = '<option value="">Sem processo específico</option>' + cases
-      .map((x) => '<option value="' + x.id + '">' + esc(x.process_number || x.title) + '</option>').join("");
+      .map((x) => '<option value="' + esc(x.id) + '">' + esc(x.process_number || x.title) + '</option>').join("");
 
     const interactions = state.clientInteractions.filter((x) => x.client_id === id)
       .sort((a,b) => new Date(b.occurred_at) - new Date(a.occurred_at));
@@ -1009,7 +1030,7 @@
       return '<div class="event ' + (done ? "ok" : "") + '">' +
         '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center">' +
           '<div><strong>' + esc(x.label) + '</strong><small>' + (x.due_at ? "Prazo interno: " + brDate(x.due_at) : (x.is_required ? "Obrigatório" : "Opcional")) + '</small></div>' +
-          '<button class="btn ' + (done ? "secondary" : "ghost") + ' sm" data-toggle-checklist="' + x.id + '" data-done="' + (done ? "1" : "0") + '">' + (done ? "Reabrir" : "Concluir") + '</button>' +
+          '<button class="btn ' + (done ? "secondary" : "ghost") + ' sm" data-toggle-checklist="' + esc(x.id) + '" data-done="' + (done ? "1" : "0") + '">' + (done ? "Reabrir" : "Concluir") + '</button>' +
         '</div></div>';
     }).join("") : '<div class="empty">Nenhum item de checklist.</div>';
 
@@ -1022,25 +1043,23 @@
     $("#caseTaskList").innerHTML = tasks.length ? tasks.map((x) =>
       '<div class="event ' + (isOverdue(x.due_at, x.status) ? "urgent" : "") + '"><strong>' + esc(x.title) + '</strong><small>' + (x.due_at ? brDate(x.due_at) + " • " : "") + esc(taskStatusLabels[x.status] || x.status) + '</small></div>'
     ).join("") : '<div class="empty">Sem tarefas vinculadas.</div>';
+  }
 
-    $("[data-toggle-checklist]").forEach((b) => {
-      b.addEventListener("click", async () => {
-        const nextDone = b.dataset.done !== "1";
-        setBusy(b, true, "Salvando");
-        try {
-          const { error } = await supabase.from("case_checklist_items")
-            .update({ is_done: nextDone, done_at: nextDone ? new Date().toISOString() : null })
-            .eq("id", b.dataset.toggleChecklist).eq("firm_id", state.firm.id);
-          if (error) throw error;
-          await core.loadData();
-          renderCaseWorkspace();
-        } catch (error) {
-          toast(error.message || "Não foi possível atualizar o checklist.", "err");
-        } finally {
-          setBusy(b, false);
-        }
-      });
-    });
+  async function toggleChecklist(b) {
+    const nextDone = b.dataset.done !== "1";
+    setBusy(b, true, "Salvando");
+    try {
+      const { error } = await supabase.from("case_checklist_items")
+        .update({ is_done: nextDone, done_at: nextDone ? new Date().toISOString() : null })
+        .eq("id", b.dataset.toggleChecklist).eq("firm_id", state.firm.id);
+      if (error) throw error;
+      await core.loadData();
+      renderCaseWorkspace();
+    } catch (error) {
+      toast(error.message || "Não foi possível atualizar o checklist.", "err");
+    } finally {
+      setBusy(b, false);
+    }
   }
 
   function openCaseWorkspace(id) {
@@ -1079,10 +1098,41 @@
     }
   });
 
-  function bindCoreDetailButtons() {
-    $("[data-client-file]").forEach((b) => b.addEventListener("click", () => openClientFile(b.dataset.clientFile)));
-    $("[data-case-workspace]").forEach((b) => b.addEventListener("click", () => openCaseWorkspace(b.dataset.caseWorkspace)));
+  function convertLead(id) {
+    const lead = state.leads.find((x) => x.id === id);
+    if (!lead) return;
+    const notes = ["Convertido do CRM", lead.source ? "Origem: " + lead.source : "", lead.legal_area ? "Área: " + lead.legal_area : "", lead.notes || ""]
+      .filter(Boolean).join("\n");
+    core.switchSection("clients");
+    core.openClientDialog(null, { full_name: lead.full_name, phone: lead.phone, email: lead.email, notes });
   }
+
+  // Um único listener para os botões gerados pelas listas do organizador.
+  const clickActions = [
+    ["data-edit-deadline", (b) => openDeadlineDialog(b.dataset.editDeadline)],
+    ["data-complete-deadline", (b) => completeDeadline(b.dataset.completeDeadline, b)],
+    ["data-edit-task", (b) => openTaskDialog(b.dataset.editTask)],
+    ["data-complete-task", (b) => completeTask(b.dataset.completeTask, b)],
+    ["data-edit-event", (b) => openEventDialog(b.dataset.editEvent)],
+    ["data-edit-finance", (b) => openFinanceDialog(b.dataset.editFinance)],
+    ["data-pay-finance", (b) => markPaid(b.dataset.payFinance, b)],
+    ["data-edit-lead", (b) => openLeadDialog(b.dataset.editLead)],
+    ["data-convert-lead", (b) => convertLead(b.dataset.convertLead)],
+    ["data-edit-template", (b) => openTemplateDialog(b.dataset.editTemplate)],
+    ["data-download-document", (b) => downloadDocument(b.dataset.downloadDocument, b)],
+    ["data-delete-document", (b) => deleteDocument(b.dataset.deleteDocument, b)],
+    ["data-toggle-checklist", (b) => toggleChecklist(b)],
+    ["data-client-file", (b) => openClientFile(b.dataset.clientFile)],
+    ["data-case-workspace", (b) => openCaseWorkspace(b.dataset.caseWorkspace)]
+  ];
+  const clickSelector = clickActions.map(([attr]) => "[" + attr + "]").join(",");
+
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest?.(clickSelector);
+    if (!button || button.disabled) return;
+    const action = clickActions.find(([attr]) => button.hasAttribute(attr));
+    action?.[1](button);
+  });
 
   function renderConflictSearch() {
     const q = norm($("#conflictSearch")?.value || "").trim();
@@ -1118,12 +1168,9 @@
     const activeCases = state.cases.filter((x) => !["closed","archived"].includes(x.status)).length;
     const overdueDeadlines = state.deadlines.filter((x) => isOverdue(x.due_at, x.status)).length;
     const overdueTasks = state.tasks.filter((x) => isOverdue(x.due_at, x.status)).length;
-    const receivable = state.financialEntries
-      .filter((x) => financeIsReceivable(x) && ["pending","overdue"].includes(effectiveFinanceStatus(x)))
-      .reduce((s,x) => s + Number(x.amount || 0), 0);
-    const paid = state.financialEntries
-      .filter((x) => financeIsReceivable(x) && x.status === "paid")
-      .reduce((s,x) => s + Number(x.amount || 0), 0);
+    const totals = financeTotals(state.financialEntries);
+    const receivable = totals.receivable;
+    const paid = totals.received;
 
     $("#rClients").textContent = activeClients;
     $("#rCases").textContent = activeCases;
@@ -1162,66 +1209,96 @@
     }
 
     const results = [];
+    const has = (...values) => norm(values.filter(Boolean).join(" ")).includes(q);
 
     state.clients.forEach((c) => {
-      if (norm((c.full_name || "") + " " + (c.cpf_cnpj || "") + " " + (c.phone || "")).includes(q)) {
+      if (has(c.full_name, c.cpf_cnpj, c.phone, c.email)) {
         results.push({ kind: "client", id: c.id, title: c.full_name, meta: "Cliente • " + (c.cpf_cnpj || c.phone || "") });
       }
     });
 
     state.cases.forEach((c) => {
       const client = clientById(c.client_id);
-      if (norm((c.title || "") + " " + (c.process_number || "") + " " + (c.claimant || "") + " " + (c.defendant || "") + " " + (client?.full_name || "")).includes(q)) {
+      if (has(c.title, c.process_number, c.claimant, c.defendant, client?.full_name)) {
         results.push({ kind: "case", id: c.id, title: c.process_number || c.title, meta: "Processo • " + (client?.full_name || c.title || "") });
       }
     });
 
     state.deadlines.forEach((x) => {
-      if (norm((x.title || "") + " " + (x.source || "")).includes(q)) {
+      if (has(x.title, x.source)) {
         results.push({ kind: "deadline", id: x.id, title: x.title, meta: "Prazo • " + brDate(x.due_at) });
       }
     });
 
     state.tasks.forEach((x) => {
-      if (norm((x.title || "") + " " + (x.description || "")).includes(q)) {
+      if (has(x.title, x.description)) {
         results.push({ kind: "task", id: x.id, title: x.title, meta: "Tarefa" + (x.due_at ? " • " + brDate(x.due_at) : "") });
       }
     });
 
+    state.calendarEvents.forEach((x) => {
+      if (has(x.title, x.location, x.notes)) {
+        results.push({ kind: "event", id: x.id, title: x.title, meta: (eventTypeLabels[x.event_type] || "Compromisso") + " • " + brDate(x.start_at) });
+      }
+    });
+
+    state.financialEntries.forEach((x) => {
+      const client = clientById(x.client_id);
+      if (has(x.description, client?.full_name, financeTypeLabels[x.entry_type])) {
+        results.push({ kind: "finance", id: x.id, title: x.description, meta: "Financeiro • " + money(x.amount) + (client ? " • " + client.full_name : "") });
+      }
+    });
+
     state.leads.forEach((x) => {
-      if (norm((x.full_name || "") + " " + (x.phone || "") + " " + (x.email || "")).includes(q)) {
+      if (has(x.full_name, x.phone, x.email)) {
         results.push({ kind: "lead", id: x.id, title: x.full_name, meta: "CRM • " + (leadStatusLabels[x.status] || x.status) });
       }
     });
 
     state.documents.forEach((x) => {
       const proc = caseById(x.case_id);
-      if (norm((x.name || "") + " " + (x.document_type || "") + " " + (proc?.process_number || "")).includes(q)) {
+      if (has(x.name, x.document_type, proc?.process_number)) {
         results.push({ kind: "document", id: x.id, title: x.name, meta: "Documento • " + (proc?.process_number || proc?.title || "") });
       }
     });
 
-    const shown = results.slice(0, 14);
+    state.templates.forEach((x) => {
+      if (has(x.title, x.category)) {
+        results.push({ kind: "template", id: x.id, title: x.title, meta: "Modelo • " + (templateTypeLabels[x.template_type] || x.template_type) });
+      }
+    });
+
+    const shown = results.slice(0, 20);
     target.innerHTML = shown.length ? shown.map((r) =>
-      '<button class="global-result" type="button" data-global-kind="' + r.kind + '" data-global-id="' + r.id + '">' +
+      '<button class="global-result" type="button" data-global-kind="' + esc(r.kind) + '" data-global-id="' + esc(r.id) + '">' +
       '<strong>' + esc(r.title) + '</strong><span>' + esc(r.meta) + '</span></button>'
     ).join("") : '<div class="empty">Nenhum resultado encontrado.</div>';
     target.classList.remove("hidden");
+  }
 
-    $("[data-global-kind]", target).forEach((b) => {
-      b.addEventListener("click", () => {
-        const kind = b.dataset.globalKind;
-        const id = b.dataset.globalId;
-        target.classList.add("hidden");
-        input.value = "";
-        if (kind === "client") return openClientFile(id);
-        if (kind === "case") return openCaseWorkspace(id);
-        if (kind === "deadline") { core.switchSection("deadlines"); openDeadlineDialog(id); return; }
-        if (kind === "task") { core.switchSection("tasks"); openTaskDialog(id); return; }
-        if (kind === "lead") { core.switchSection("crm"); openLeadDialog(id); return; }
-        if (kind === "document") { core.switchSection("documents"); return; }
-      });
-    });
+  function closeGlobalSearch(clear) {
+    const input = $("#globalSearch");
+    $("#globalSearchResults")?.classList.add("hidden");
+    if (clear && input) input.value = "";
+  }
+
+  function openGlobalResult(kind, id) {
+    closeGlobalSearch(true);
+    if (kind === "client") return openClientFile(id);
+    if (kind === "case") return openCaseWorkspace(id);
+    if (kind === "deadline") { core.switchSection("deadlines"); return openDeadlineDialog(id); }
+    if (kind === "task") { core.switchSection("tasks"); return openTaskDialog(id); }
+    if (kind === "event") { core.switchSection("agenda"); return openEventDialog(id); }
+    if (kind === "finance") { core.switchSection("finance"); return openFinanceDialog(id); }
+    if (kind === "lead") { core.switchSection("crm"); return openLeadDialog(id); }
+    if (kind === "template") { core.switchSection("templates"); return openTemplateDialog(id); }
+    if (kind === "document") {
+      const doc = state.documents.find((x) => x.id === id);
+      core.switchSection("documents");
+      $("#documentTypeFilter").value = "all";
+      $("#documentSearch").value = doc?.name || "";
+      renderDocuments();
+    }
   }
 
   function renderAll() {
@@ -1235,9 +1312,9 @@
     renderLeads();
     renderToday();
     renderCaseHealthBadges();
-    bindCoreDetailButtons();
     renderConflictSearch();
     renderReports();
+    if (!$("#globalSearchResults")?.classList.contains("hidden")) renderGlobalSearch();
     if (state.activeClientFileId && $("#clientFileDialog")?.open) renderClientFile();
     if (state.activeCaseWorkspaceId && $("#caseWorkspaceDialog")?.open) renderCaseWorkspace();
   }
@@ -1286,6 +1363,29 @@
   ["leadSearch","leadFilter"].forEach((id) => $("#" + id)?.addEventListener("input", renderLeads));
   $("#globalSearch")?.addEventListener("input", renderGlobalSearch);
   $("#globalSearch")?.addEventListener("focus", renderGlobalSearch);
+  $("#globalSearchResults")?.addEventListener("click", (event) => {
+    const b = event.target.closest("[data-global-kind]");
+    if (b) openGlobalResult(b.dataset.globalKind, b.dataset.globalId);
+  });
+  // Teclado: setas navegam pelos resultados, Enter abre, Esc fecha.
+  $(".global-search-box")?.addEventListener("keydown", (event) => {
+    const items = $$("#globalSearchResults [data-global-kind]");
+    const index = items.indexOf(document.activeElement);
+    if (event.key === "Escape") {
+      closeGlobalSearch(false);
+      $("#globalSearch").focus();
+    } else if (event.key === "ArrowDown" && items.length) {
+      event.preventDefault();
+      items[Math.min(index + 1, items.length - 1)].focus();
+    } else if (event.key === "ArrowUp" && items.length) {
+      event.preventDefault();
+      if (index <= 0) $("#globalSearch").focus();
+      else items[index - 1].focus();
+    } else if (event.key === "Enter" && event.target.id === "globalSearch" && items.length) {
+      event.preventDefault();
+      items[0].click();
+    }
+  });
   document.addEventListener("click", (event) => {
     const box = event.target.closest?.(".global-search-box");
     if (!box) $("#globalSearchResults")?.classList.add("hidden");
@@ -1293,5 +1393,5 @@
   $("#conflictSearch")?.addEventListener("input", renderConflictSearch);
   $("#printReportBtn")?.addEventListener("click", () => window.print());
 
-  window.AdvogaOrganizer = { loadData, renderAll };
+  window.AdvogaOrganizer = { loadData, renderAll, renderCaseHealthBadges };
 })();
