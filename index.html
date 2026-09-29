@@ -13,7 +13,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
-  <link rel="stylesheet" href="./styles.css?v=6" />
+  <link rel="stylesheet" href="./styles.css?v=7" />
 </head>
 <body>
   <div id="previewBanner" class="preview-banner hidden" role="status">
@@ -174,6 +174,34 @@
                 <div class="metric-label"><span>WhatsApps enviados</span><span class="metric-icon">↗</span></div>
                 <b id="mMessages">0</b>
               </div>
+            </div>
+
+            <div class="card panel calendar-panel">
+              <div class="cal-head">
+                <div>
+                  <h3>Calendário</h3>
+                  <span id="calLabel" class="cal-month"></span>
+                </div>
+                <div class="cal-nav">
+                  <button class="btn ghost sm" type="button" data-cal-nav="-1" aria-label="Mês anterior">‹</button>
+                  <button class="btn secondary sm" type="button" data-cal-nav="0">Hoje</button>
+                  <button class="btn ghost sm" type="button" data-cal-nav="1" aria-label="Próximo mês">›</button>
+                </div>
+              </div>
+              <div class="cal-legend" aria-hidden="true">
+                <span><i class="cal-dot t-deadline"></i>Prazos</span>
+                <span><i class="cal-dot t-hearing"></i>Audiências</span>
+                <span><i class="cal-dot t-event"></i>Compromissos</span>
+                <span><i class="cal-dot t-task"></i>Tarefas</span>
+                <span><i class="cal-dot t-finance"></i>Financeiro</span>
+              </div>
+              <div class="cal-weekdays" aria-hidden="true"><span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span></div>
+              <div id="calGrid" class="cal-grid"></div>
+              <div class="cal-list-head">
+                <h3 id="calListTitle">O que vem por aí</h3>
+                <button id="calListReset" class="btn ghost sm hidden" type="button" data-cal-reset>Ver próximos</button>
+              </div>
+              <div id="calList" class="cal-list"></div>
             </div>
 
             <div class="dashboard-grid">
@@ -1267,7 +1295,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" integrity="sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU" crossorigin="anonymous"></script>
-  <script src="./app.js?v=6"></script>
-  <script src="./organizer.js?v=6"></script>
+  <script src="./app.js?v=7"></script>
+  <script src="./organizer.js?v=7"></script>
 </body>
 </html>

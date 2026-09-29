@@ -1135,6 +1135,212 @@
     core.openClientDialog(null, { full_name: lead.full_name, phone: lead.phone, email: lead.email, notes });
   }
 
+  // ---------- Calendário da visão geral ----------
+  const calTypeLabels = { deadline: "Prazo", hearing: "Audiência", event: "Compromisso", task: "Tarefa", finance: "Financeiro" };
+  const calState = { year: 0, month: 0, selected: null };
+  const timeFormatter = new Intl.DateTimeFormat("pt-BR", { timeZone: core.TIME_ZONE, hour: "2-digit", minute: "2-digit" });
+  const monthFormatter = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC", month: "long", year: "numeric" });
+  const dayFormatter = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" });
+
+  function keyToDate(key) {
+    return new Date(key + "T12:00:00Z");
+  }
+
+  function addDaysKey(key, days) {
+    const d = keyToDate(key);
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function capitalize(text) {
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
+  function dayTitle(key) {
+    const today = todayKey();
+    if (key === today) return "Hoje";
+    if (key === addDaysKey(today, 1)) return "Amanhã";
+    if (key === addDaysKey(today, -1)) return "Ontem";
+    return capitalize(dayFormatter.format(keyToDate(key)));
+  }
+
+  function calendarItems() {
+    const items = [];
+    const push = (item) => { if (item.key) items.push(item); };
+    const caseLabel = (caseId, clientId) => {
+      const proc = caseById(caseId);
+      const client = clientById(clientId || proc?.client_id);
+      return [client?.full_name, proc?.process_number || proc?.title].filter(Boolean).join(" • ");
+    };
+
+    state.deadlines.forEach((x) => {
+      if (!x.due_at || x.status === "cancelled") return;
+      push({ key: dateKey(x.due_at), ms: new Date(x.due_at).getTime(), type: "deadline", title: x.title,
+        meta: caseLabel(x.case_id, x.client_id), done: x.status === "completed", overdue: isOverdue(x.due_at, x.status), open: "deadline|" + x.id });
+    });
+
+    const hearingSeen = new Set();
+    state.calendarEvents.forEach((x) => {
+      if (!x.start_at) return;
+      const type = x.event_type === "hearing" ? "hearing" : "event";
+      if (type === "hearing") hearingSeen.add((x.case_id || "") + "|" + new Date(x.start_at).getTime());
+      push({ key: dateKey(x.start_at), ms: new Date(x.start_at).getTime(), type, title: x.title,
+        meta: [eventTypeLabels[x.event_type], caseLabel(x.case_id, x.client_id), x.location].filter(Boolean).join(" • "), open: "event|" + x.id });
+    });
+
+    state.cases.forEach((c) => {
+      if (!c.hearing_at || hearingSeen.has(c.id + "|" + new Date(c.hearing_at).getTime())) return;
+      push({ key: dateKey(c.hearing_at), ms: new Date(c.hearing_at).getTime(), type: "hearing", title: "Audiência — " + (c.title || "processo"),
+        meta: caseLabel(c.id, c.client_id), open: "case|" + c.id });
+    });
+
+    state.tasks.forEach((x) => {
+      if (!x.due_at || x.status === "cancelled") return;
+      push({ key: dateKey(x.due_at), ms: new Date(x.due_at).getTime(), type: "task", title: x.title,
+        meta: caseLabel(x.case_id, x.client_id), done: x.status === "completed", overdue: isOverdue(x.due_at, x.status), open: "task|" + x.id });
+    });
+
+    state.financialEntries.forEach((x) => {
+      const status = effectiveFinanceStatus(x);
+      if (!x.due_date || !["pending", "overdue"].includes(status)) return;
+      const client = clientById(x.client_id);
+      push({ key: String(x.due_date).slice(0, 10), ms: null, type: "finance", title: x.description,
+        meta: [(financeIsReceivable(x) ? "A receber " : "A pagar ") + money(x.amount), client?.full_name].filter(Boolean).join(" • "),
+        overdue: status === "overdue", open: "finance|" + x.id });
+    });
+
+    // Itens sem horário (financeiro) aparecem primeiro no dia.
+    return items.sort((a, b) => a.key.localeCompare(b.key) || (a.ms ?? -1) - (b.ms ?? -1));
+  }
+
+  function calItemHtml(item) {
+    const time = item.ms == null ? "Dia todo" : timeFormatter.format(new Date(item.ms));
+    const cls = "cal-item" + (item.done ? " is-done" : "") + (item.overdue ? " is-overdue" : "");
+    const status = item.done ? " • Concluído" : item.overdue ? " • Atrasado" : "";
+    return '<button type="button" class="' + cls + '" data-cal-open="' + esc(item.open) + '">' +
+      '<i class="cal-dot t-' + item.type + '"></i>' +
+      '<span class="cal-time">' + esc(time) + '</span>' +
+      '<span class="cal-body"><strong>' + esc(item.title) + '</strong>' +
+      '<small>' + esc(calTypeLabels[item.type] + status + (item.meta ? " • " + item.meta : "")) + '</small></span>' +
+      '</button>';
+  }
+
+  function renderCalendar() {
+    const grid = $("#calGrid");
+    if (!grid) return;
+    const today = todayKey();
+    if (!calState.year) {
+      calState.year = Number(today.slice(0, 4));
+      calState.month = Number(today.slice(5, 7)) - 1;
+    }
+
+    const items = calendarItems();
+    const byDay = new Map();
+    items.forEach((item) => {
+      if (!byDay.has(item.key)) byDay.set(item.key, []);
+      byDay.get(item.key).push(item);
+    });
+
+    const first = new Date(Date.UTC(calState.year, calState.month, 1));
+    $("#calLabel").textContent = capitalize(monthFormatter.format(first));
+    const start = new Date(first);
+    start.setUTCDate(1 - first.getUTCDay());
+    const daysInMonth = new Date(Date.UTC(calState.year, calState.month + 1, 0)).getUTCDate();
+    const totalCells = Math.ceil((first.getUTCDay() + daysInMonth) / 7) * 7;
+
+    let cells = "";
+    for (let i = 0; i < totalCells; i += 1) {
+      const d = new Date(start);
+      d.setUTCDate(start.getUTCDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      const dayItems = byDay.get(key) || [];
+      const open = dayItems.filter((x) => !x.done);
+      const classes = ["cal-day"];
+      if (d.getUTCMonth() !== calState.month) classes.push("is-out");
+      if (key === today) classes.push("is-today");
+      if (key === calState.selected) classes.push("is-selected");
+      if (open.some((x) => x.overdue)) classes.push("has-overdue");
+      const chips = dayItems.slice(0, 2).map((x) =>
+        '<span class="cal-chip t-' + x.type + (x.done ? " is-done" : "") + '">' + esc(x.title) + '</span>').join("") +
+        (dayItems.length > 2 ? '<span class="cal-more">+' + (dayItems.length - 2) + '</span>' : "");
+      const dots = dayItems.slice(0, 4).map((x) => '<i class="cal-dot t-' + x.type + '"></i>').join("");
+      const label = dayTitle(key) + (dayItems.length ? ": " + dayItems.length + " item(ns)" : ": sem itens");
+      cells += '<button type="button" class="' + classes.join(" ") + '" data-cal-day="' + key + '" aria-label="' + esc(label) + '"' +
+        (key === calState.selected ? ' aria-pressed="true"' : "") + '>' +
+        '<span class="cal-num">' + d.getUTCDate() + '</span>' +
+        '<span class="cal-chips">' + chips + '</span>' +
+        '<span class="cal-dots">' + dots + '</span>' +
+        '</button>';
+    }
+    grid.innerHTML = cells;
+    renderCalendarList(items, byDay, today);
+  }
+
+  function renderCalendarList(items, byDay, today) {
+    const list = $("#calList");
+    const reset = $("#calListReset");
+    if (calState.selected) {
+      const dayItems = byDay.get(calState.selected) || [];
+      $("#calListTitle").textContent = dayTitle(calState.selected);
+      reset.classList.remove("hidden");
+      list.innerHTML = dayItems.length
+        ? '<div class="cal-group">' + dayItems.map(calItemHtml).join("") + '</div>'
+        : '<div class="empty">Nada marcado para este dia.</div>';
+      return;
+    }
+
+    $("#calListTitle").textContent = "O que vem por aí";
+    reset.classList.add("hidden");
+    const limit = addDaysKey(today, 30);
+    const overdue = items.filter((x) => x.overdue && !x.done && x.key < today);
+    const upcoming = items.filter((x) => !x.done && x.key >= today && x.key <= limit).slice(0, 40);
+
+    const groups = [];
+    if (overdue.length) groups.push({ title: "Atrasados", cls: " is-overdue", items: overdue.slice(0, 10) });
+    upcoming.forEach((item) => {
+      const last = groups[groups.length - 1];
+      if (last && last.key === item.key) last.items.push(item);
+      else groups.push({ key: item.key, title: dayTitle(item.key), cls: item.key === today ? " is-today" : "", items: [item] });
+    });
+
+    list.innerHTML = groups.length
+      ? groups.map((g) => '<div class="cal-group' + g.cls + '"><h4>' + esc(g.title) + '</h4>' + g.items.map(calItemHtml).join("") + '</div>').join("")
+      : '<div class="empty">Nada agendado para os próximos 30 dias.</div>';
+  }
+
+  function calendarNav(step) {
+    const today = todayKey();
+    if (step === 0) {
+      calState.year = Number(today.slice(0, 4));
+      calState.month = Number(today.slice(5, 7)) - 1;
+      calState.selected = today;
+    } else {
+      const d = new Date(Date.UTC(calState.year, calState.month + step, 1));
+      calState.year = d.getUTCFullYear();
+      calState.month = d.getUTCMonth();
+    }
+    renderCalendar();
+  }
+
+  function calendarSelect(key) {
+    calState.selected = calState.selected === key ? null : key;
+    const month = Number(key.slice(5, 7)) - 1;
+    if (calState.selected && month !== calState.month) {
+      calState.year = Number(key.slice(0, 4));
+      calState.month = month;
+    }
+    renderCalendar();
+  }
+
+  function calendarOpen(value) {
+    const [kind, id] = String(value).split("|");
+    if (kind === "deadline") return openDeadlineDialog(id);
+    if (kind === "event") return openEventDialog(id);
+    if (kind === "task") return openTaskDialog(id);
+    if (kind === "finance") return openFinanceDialog(id);
+    if (kind === "case") return openCaseWorkspace(id);
+  }
+
   // Um único listener para os botões gerados pelas listas do organizador.
   const clickActions = [
     ["data-edit-deadline", (b) => openDeadlineDialog(b.dataset.editDeadline)],
@@ -1151,7 +1357,11 @@
     ["data-delete-document", (b) => deleteDocument(b.dataset.deleteDocument, b)],
     ["data-toggle-checklist", (b) => toggleChecklist(b)],
     ["data-client-file", (b) => openClientFile(b.dataset.clientFile)],
-    ["data-case-workspace", (b) => openCaseWorkspace(b.dataset.caseWorkspace)]
+    ["data-case-workspace", (b) => openCaseWorkspace(b.dataset.caseWorkspace)],
+    ["data-cal-nav", (b) => calendarNav(Number(b.dataset.calNav))],
+    ["data-cal-day", (b) => calendarSelect(b.dataset.calDay)],
+    ["data-cal-reset", () => { calState.selected = null; renderCalendar(); }],
+    ["data-cal-open", (b) => calendarOpen(b.dataset.calOpen)]
   ];
   const clickSelector = clickActions.map(([attr]) => "[" + attr + "]").join(",");
 
@@ -1347,6 +1557,7 @@
     renderTemplates();
     renderLeads();
     renderToday();
+    renderCalendar();
     renderCaseHealthBadges();
     renderConflictSearch();
     renderReports();
