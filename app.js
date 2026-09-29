@@ -60,6 +60,8 @@
     user: null,
     firm: null,
     role: null,
+    isPlatformAdmin: false,
+    accessControl: null,
     clients: [],
     cases: [],
     updates: [],
@@ -330,7 +332,7 @@
     location.reload();
   });
 
-  $("#firmForm").addEventListener("submit", async (event) => {
+  $("#firmForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const button = event.submitter;
     setBusy(button, true, "Criando");
@@ -1242,14 +1244,34 @@
     const { data: { user } } = await supabase.auth.getUser();
     state.user = user || null;
 
+    $("#adminApp")?.classList.add("hidden");
+    $("#blockedArea")?.classList.add("hidden");
+
     if (!user) {
       $("#landing").classList.remove("hidden");
       $("#app").classList.add("hidden");
       return;
     }
 
+    const { data: platformAdmin } = await supabase
+      .from("platform_admins")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    state.isPlatformAdmin = Boolean(platformAdmin);
+    const requestedMode = new URLSearchParams(location.search).get("mode");
+    if (state.isPlatformAdmin && requestedMode !== "office") {
+      $("#landing").classList.add("hidden");
+      $("#app").classList.add("hidden");
+      $("#adminApp")?.classList.remove("hidden");
+      window.AdvogaAdmin?.boot(window.AdvogaCore);
+      return;
+    }
+
     $("#landing").classList.add("hidden");
     $("#app").classList.remove("hidden");
+    $("#masterAccessBtn")?.classList.toggle("hidden", !state.isPlatformAdmin);
     $("#lawyerArea").classList.add("hidden");
     $("#onboardingArea").classList.add("hidden");
 
@@ -1275,7 +1297,29 @@
     const membership = memberships[0];
     state.firm = membership.law_firms;
     state.role = membership.role;
-    const roleLabel = { owner: "Proprietário", lawyer: "Advogado", assistant: "Assistente" }[state.role] || state.role || "Perfil não informado";
+
+    const { data: accessControl, error: accessError } = await supabase
+      .from("firm_access_controls")
+      .select("access_status,user_limit")
+      .eq("firm_id", membership.firm_id)
+      .maybeSingle();
+
+    if (accessError) {
+      toast(accessError.message || "Não foi possível validar o acesso do escritório.", "err");
+      return;
+    }
+
+    state.accessControl = accessControl || { access_status: "active", user_limit: 5 };
+    if (state.accessControl.access_status !== "active") {
+      $("#lawyerArea").classList.add("hidden");
+      $("#blockedArea")?.classList.remove("hidden");
+      const blockedText = $("#blockedFirmText");
+      if (blockedText) blockedText.textContent = `${state.firm?.name || "Este escritório"} está com o acesso ${state.accessControl.access_status === "ended" ? "encerrado" : "bloqueado"}.`;
+      $("#userLabel").textContent = user.email || "Conectado";
+      return;
+    }
+
+    const roleLabel = { owner: "Proprietário", lawyer: "Advogado", staff: "Equipe" }[state.role] || state.role || "Perfil não informado";
     const accessSummary = $("#currentAccessSummary");
     if (accessSummary) accessSummary.textContent = `${user.email || "Usuário conectado"} • ${roleLabel} • ${state.firm?.name || "Escritório"}`;
     $("#lawyerArea").classList.remove("hidden");
@@ -1283,6 +1327,7 @@
     const requestedSection = location.hash.replace(/^#/, "");
     switchSection(validSections.has(requestedSection) ? requestedSection : "overview", { updateHash: false, instant: true });
     loadWhatsappStatus();
+    window.AdvogaTeam?.boot(window.AdvogaCore);
   }
 
   supabase.auth.onAuthStateChange((_event, session) => {
@@ -1291,6 +1336,7 @@
 
   window.AdvogaCore = {
     supabase,
+    rawSupabase,
     state,
     $,
     $$,
