@@ -11,6 +11,7 @@
   const priorityLabels = { low: "Baixa", normal: "Normal", high: "Alta", urgent: "Urgente" };
   const priorityTypes = { low: "", normal: "", high: "warn", urgent: "err" };
   const deadlineStatusLabels = { pending: "Pendente", in_progress: "Em andamento", completed: "Concluído", cancelled: "Cancelado" };
+  const deadlineTypeLabels = { processual: "Processual", appeal: "Recurso", administrative: "Administrativo", internal: "Interno", hearing: "Audiência", other: "Outro" };
   const taskStatusLabels = { todo: "A fazer", in_progress: "Em andamento", waiting: "Aguardando", completed: "Concluída", cancelled: "Cancelada" };
   const eventTypeLabels = { hearing: "Audiência", expert_exam: "Perícia", meeting: "Reunião", deadline: "Prazo", court_visit: "Diligência", other: "Compromisso" };
   const financeTypeLabels = {
@@ -163,12 +164,17 @@
           .eq("id", state.editingDeadlineId).eq("firm_id", state.firm.id);
         if (error) throw error;
         toast("Prazo atualizado.");
+        const completedNow = status === "completed" && current?.status !== "completed";
+        core.logActivity(completedNow ? "deadline.completed" : "deadline.updated", "deadline", state.editingDeadlineId,
+          (completedNow ? "Prazo concluído: " : "Prazo editado: ") + payload.title,
+          { case_id: payload.case_id, fields: core.changedFields(current, payload) });
       } else {
-        const { error } = await supabase.from("deadlines").insert({
+        const { data: created, error } = await supabase.from("deadlines").insert({
           ...payload, firm_id: state.firm.id, created_by: state.user.id
-        });
+        }).select("id").single();
         if (error) throw error;
         toast("Prazo cadastrado.");
+        core.logActivity("deadline.created", "deadline", created?.id, "Prazo criado: " + payload.title, { case_id: payload.case_id });
       }
       closeDialog("deadlineDialog");
       await core.loadData();
@@ -187,6 +193,8 @@
         .eq("id", id).eq("firm_id", state.firm.id);
       if (error) throw error;
       toast("Prazo concluído.");
+      const done = state.deadlines.find((x) => x.id === id);
+      core.logActivity("deadline.completed", "deadline", id, "Prazo concluído: " + (done?.title || ""), { case_id: done?.case_id || null });
       await core.loadData();
     } catch (error) {
       toast(error.message || "Não foi possível concluir o prazo.", "err");
@@ -240,12 +248,15 @@
           .eq("id", state.editingTaskId).eq("firm_id", state.firm.id);
         if (error) throw error;
         toast("Tarefa atualizada.");
+        core.logActivity("task.updated", "task", state.editingTaskId, "Tarefa alterada: " + payload.title,
+          { case_id: payload.case_id, fields: core.changedFields(current, payload), status_from: current?.status, status_to: status });
       } else {
-        const { error } = await supabase.from("tasks").insert({
+        const { data: created, error } = await supabase.from("tasks").insert({
           ...payload, firm_id: state.firm.id, created_by: state.user.id
-        });
+        }).select("id").single();
         if (error) throw error;
         toast("Tarefa criada.");
+        core.logActivity("task.created", "task", created?.id, "Tarefa criada: " + payload.title, { case_id: payload.case_id });
       }
       closeDialog("taskDialog");
       await core.loadData();
@@ -264,6 +275,8 @@
         .eq("id", id).eq("firm_id", state.firm.id);
       if (error) throw error;
       toast("Tarefa concluída.");
+      const done = state.tasks.find((x) => x.id === id);
+      core.logActivity("task.completed", "task", id, "Tarefa concluída: " + (done?.title || ""), { case_id: done?.case_id || null });
       await core.loadData();
     } catch (error) {
       toast(error.message || "Não foi possível concluir a tarefa.", "err");
@@ -325,12 +338,15 @@
           .eq("id", state.editingEventId).eq("firm_id", state.firm.id);
         if (error) throw error;
         toast("Compromisso atualizado.");
+        core.logActivity("event.updated", "event", state.editingEventId, "Compromisso alterado: " + payload.title,
+          { case_id: payload.case_id, fields: core.changedFields(current, payload) });
       } else {
-        const { error } = await supabase.from("calendar_events").insert({
+        const { data: created, error } = await supabase.from("calendar_events").insert({
           ...payload, firm_id: state.firm.id, created_by: state.user.id
-        });
+        }).select("id").single();
         if (error) throw error;
         toast("Compromisso criado.");
+        core.logActivity("event.created", "event", created?.id, "Compromisso criado: " + payload.title, { case_id: payload.case_id });
       }
       closeDialog("eventDialog");
       await core.loadData();
@@ -393,12 +409,15 @@
           .eq("id", state.editingFinanceId).eq("firm_id", state.firm.id);
         if (error) throw error;
         toast("Lançamento atualizado.");
+        core.logActivity("finance.updated", "finance", state.editingFinanceId, "Financeiro alterado: " + payload.description,
+          { case_id: payload.case_id, fields: core.changedFields(current, payload), amount: payload.amount });
       } else {
-        const { error } = await supabase.from("financial_entries").insert({
+        const { data: created, error } = await supabase.from("financial_entries").insert({
           ...payload, firm_id: state.firm.id, created_by: state.user.id
-        });
+        }).select("id").single();
         if (error) throw error;
         toast("Lançamento criado.");
+        core.logActivity("finance.created", "finance", created?.id, "Lançamento criado: " + payload.description, { case_id: payload.case_id, amount: payload.amount });
       }
       closeDialog("financeDialog");
       await core.loadData();
@@ -417,6 +436,8 @@
         .eq("id", id).eq("firm_id", state.firm.id);
       if (error) throw error;
       toast("Pagamento registrado.");
+      const paid = state.financialEntries.find((x) => x.id === id);
+      core.logActivity("finance.paid", "finance", id, "Pagamento registrado: " + (paid?.description || ""), { case_id: paid?.case_id || null, amount: paid?.amount });
       await core.loadData();
     } catch (error) {
       toast(error.message || "Não foi possível dar baixa.", "err");
@@ -467,12 +488,14 @@
           .eq("id", state.editingLeadId).eq("firm_id", state.firm.id);
         if (error) throw error;
         toast("Interessado atualizado.");
+        core.logActivity("lead.updated", "lead", state.editingLeadId, "Interessado editado: " + payload.full_name);
       } else {
-        const { error } = await supabase.from("crm_leads").insert({
+        const { data: created, error } = await supabase.from("crm_leads").insert({
           ...payload, firm_id: state.firm.id, created_by: state.user.id
-        });
+        }).select("id").single();
         if (error) throw error;
         toast("Interessado cadastrado.");
+        core.logActivity("lead.created", "lead", created?.id, "Interessado cadastrado: " + payload.full_name);
       }
       closeDialog("leadDialog");
       await core.loadData();
@@ -483,39 +506,117 @@
     }
   });
 
+  // ---------- Central de prazos ----------
+  // Faixas por dia de calendário no horário de Brasília. "Vencidos" usa o horário exato.
+  const deadlineBuckets = [
+    { key: "overdue", label: "Vencidos", tone: "err" },
+    { key: "today", label: "Vencem hoje", tone: "warn" },
+    { key: "tomorrow", label: "Vencem amanhã", tone: "warn" },
+    { key: "next3", label: "Próximos 3 dias", tone: "" },
+    { key: "next7", label: "Próximos 7 dias", tone: "" },
+    { key: "future", label: "Futuros", tone: "" },
+    { key: "completed", label: "Concluídos", tone: "ok" }
+  ];
+  const priorityWeight = { urgent: 4, high: 3, normal: 2, low: 1 };
+
+  function daysFromToday(value) {
+    const key = dateKey(value);
+    if (!key) return null;
+    return Math.round((keyToDate(key) - keyToDate(todayKey())) / 864e5);
+  }
+
+  function deadlineBucket(item) {
+    if (item.status === "completed") return "completed";
+    if (item.status === "cancelled") return "cancelled";
+    if (!item.due_at) return "future";
+    if (isOverdue(item.due_at, item.status)) return "overdue";
+    const days = daysFromToday(item.due_at);
+    if (days <= 0) return "today";
+    if (days === 1) return "tomorrow";
+    if (days <= 3) return "next3";
+    if (days <= 7) return "next7";
+    return "future";
+  }
+
+  // Texto de contagem: "Vence hoje às 18:00", "Atrasado há 2 dias", "Vence em 5 dias".
+  function deadlineCountdown(item) {
+    const bucket = deadlineBucket(item);
+    if (bucket === "completed") return { text: item.completed_at ? "Concluído em " + brDate(item.completed_at) : "Concluído", tone: "ok" };
+    if (bucket === "cancelled") return { text: "Cancelado", tone: "" };
+    if (!item.due_at) return { text: "Sem data", tone: "" };
+    const days = daysFromToday(item.due_at);
+    const time = timeFormatter.format(new Date(item.due_at));
+    if (bucket === "overdue") {
+      if (days >= 0) return { text: "Venceu hoje às " + time, tone: "err" };
+      const late = Math.abs(days);
+      return { text: "Atrasado há " + late + (late === 1 ? " dia" : " dias"), tone: "err" };
+    }
+    if (bucket === "today") return { text: "Vence hoje às " + time, tone: "warn" };
+    if (bucket === "tomorrow") return { text: "Vence amanhã às " + time, tone: "warn" };
+    return { text: "Vence em " + days + " dias", tone: bucket === "next3" ? "warn" : "" };
+  }
+
+  function sortDeadlines(list) {
+    return list.slice().sort((a, b) => {
+      if (a.status === "completed" && b.status === "completed") {
+        return new Date(b.completed_at || b.due_at || 0) - new Date(a.completed_at || a.due_at || 0);
+      }
+      const byDate = new Date(a.due_at || 8.64e15) - new Date(b.due_at || 8.64e15);
+      return byDate || (priorityWeight[b.priority] || 0) - (priorityWeight[a.priority] || 0);
+    });
+  }
+
   function renderDeadlines() {
     const query = norm($("#deadlineSearch")?.value || "");
     const filter = $("#deadlineFilter")?.value || "open";
-    const list = state.deadlines.filter((item) => {
+    const priority = $("#deadlinePriorityFilter")?.value || "all";
+
+    const base = state.deadlines.filter((item) => {
       const client = clientById(item.client_id);
       const proc = caseById(item.case_id);
       const matchesQuery = norm(item.title + " " + (item.source || "") + " " + (client?.full_name || "") + " " + (proc?.process_number || "") + " " + (proc?.title || "")).includes(query);
-      let matchesFilter = true;
-      if (filter === "open") matchesFilter = !["completed","cancelled"].includes(item.status);
-      if (filter === "overdue") matchesFilter = isOverdue(item.due_at, item.status);
-      if (filter === "today") matchesFilter = isToday(item.due_at) && !["completed","cancelled"].includes(item.status);
-      if (filter === "completed") matchesFilter = item.status === "completed";
-      return matchesQuery && matchesFilter;
+      const matchesPriority = priority === "all" || item.priority === priority;
+      return matchesQuery && matchesPriority;
     });
+
+    const counts = {};
+    base.forEach((item) => { const b = deadlineBucket(item); counts[b] = (counts[b] || 0) + 1; });
+    const bucketsBox = $("#deadlineBuckets");
+    if (bucketsBox) {
+      bucketsBox.innerHTML = deadlineBuckets.map((b) =>
+        '<button type="button" class="bucket-card' + (b.tone ? " tone-" + b.tone : "") + (filter === b.key ? " is-active" : "") + '" data-deadline-bucket="' + b.key + '" aria-pressed="' + (filter === b.key) + '">' +
+          '<span>' + esc(b.label) + '</span><b>' + (counts[b.key] || 0) + '</b></button>'
+      ).join("");
+    }
+
+    const list = sortDeadlines(base.filter((item) => {
+      const bucket = deadlineBucket(item);
+      if (filter === "all") return true;
+      if (filter === "open") return !["completed", "cancelled"].includes(bucket);
+      return bucket === filter;
+    }));
 
     $("#deadlineCount").textContent = list.length + " de " + state.deadlines.length;
     $("#deadlinesBody").innerHTML = list.length ? list.map((item) => {
-      const client = clientById(item.client_id);
+      const client = clientById(item.client_id || caseById(item.case_id)?.client_id);
       const proc = caseById(item.case_id);
-      const statusType = item.status === "completed" ? "ok" : isOverdue(item.due_at, item.status) ? "err" : item.status === "in_progress" ? "warn" : "";
-      return '<tr>' +
-        '<td><div class="row-main"><strong>' + esc(item.title) + '</strong><span class="small">' + esc(item.source || "") + '</span></div></td>' +
-        '<td><strong>' + esc(client?.full_name || "—") + '</strong><div class="small">' + esc(proc?.process_number || proc?.title || "") + '</div></td>' +
-        '<td>' + esc(responsibleLabel(item.assigned_to || item.created_by)) + '</td>' +
-        '<td class="' + dueClass(item.due_at, item.status) + '">' + brDate(item.due_at) + '</td>' +
-        '<td>' + badge(priorityLabels[item.priority] || item.priority, priorityTypes[item.priority] || "") + '</td>' +
-        '<td>' + badge(deadlineStatusLabels[item.status] || item.status, statusType) + '</td>' +
+      const bucket = deadlineBucket(item);
+      const countdown = deadlineCountdown(item);
+      const statusType = item.status === "completed" ? "ok" : bucket === "overdue" ? "err" : item.status === "in_progress" ? "warn" : "";
+      return '<tr class="deadline-row bucket-' + bucket + '">' +
+        '<td><div class="row-main"><strong>' + esc(item.title) + '</strong>' +
+          '<span class="small">Responsável: ' + esc(responsibleLabel(item.assigned_to || item.created_by)) + '</span>' +
+          '<span class="small">' + esc([item.source, item.deadline_type ? deadlineTypeLabels[item.deadline_type] || item.deadline_type : ""].filter(Boolean).join(" • ")) + '</span></div></td>' +
+        '<td><strong class="nowrap-num">' + esc(proc?.process_number || proc?.title || "Sem processo") + '</strong><div class="small">' + esc(client?.full_name || "Sem cliente") + '</div></td>' +
+        '<td class="' + dueClass(item.due_at, item.status) + '">' + (item.due_at ? brDate(item.due_at) : "—") + '</td>' +
+        '<td>' + badge(countdown.text, countdown.tone) + '</td>' +
+        '<td><div class="badge-stack">' + badge(priorityLabels[item.priority] || item.priority || "Normal", priorityTypes[item.priority] || "") +
+          badge(deadlineStatusLabels[item.status] || item.status, statusType) + '</div></td>' +
         '<td><div class="row-actions">' +
           (!["completed","cancelled"].includes(item.status) ? '<button class="btn ghost sm" data-complete-deadline="' + esc(item.id) + '">Concluir</button>' : "") +
           '<button class="btn secondary sm" data-edit-deadline="' + esc(item.id) + '">Editar</button>' +
         '</div></td></tr>';
-    }).join("") : '<tr><td colspan="7" class="empty">Nenhum prazo encontrado.</td></tr>';
-
+    }).join("") : '<tr><td colspan="6" class="empty">Nenhum prazo encontrado.</td></tr>';
   }
 
   function renderTasks() {
@@ -698,14 +799,15 @@
 
   const templateTypeLabels = { whatsapp: "WhatsApp", email: "E-mail", document: "Documento" };
 
-  function openTemplateDialog(id = null) {
+  // prefill: usado por "Duplicar" para abrir um modelo novo já preenchido.
+  function openTemplateDialog(id = null, prefill = null) {
     state.editingTemplateId = id;
     $("#templateForm").reset();
     setStatus($("#templateStatusMsg"));
-    const item = id ? state.templates.find((x) => x.id === id) : null;
-    $("#templateDialogTitle").textContent = item ? "Editar modelo" : "Novo modelo";
-    $("#templateSaveBtn").textContent = item ? "Salvar alterações" : "Salvar modelo";
-    $("#templateType").value = item?.template_type || "whatsapp";
+    const item = id ? state.templates.find((x) => x.id === id) : prefill;
+    $("#templateDialogTitle").textContent = id ? "Editar modelo" : prefill ? "Duplicar modelo" : "Novo modelo";
+    $("#templateSaveBtn").textContent = id ? "Salvar alterações" : "Salvar modelo";
+    $("#templateType").value = item?.template_type || "document";
     $("#templateActive").value = item?.active === false ? "false" : "true";
     if (item) {
       $("#templateTitle").value = item.title || "";
@@ -713,6 +815,30 @@
       $("#templateContent").value = item.content || "";
     }
     openDialog("templateDialog");
+  }
+
+  function duplicateTemplate(id) {
+    const item = state.templates.find((x) => x.id === id);
+    if (!item) return;
+    openTemplateDialog(null, { ...item, title: "Cópia de " + (item.title || "modelo") });
+  }
+
+  async function deleteTemplate(id, button) {
+    const item = state.templates.find((x) => x.id === id);
+    if (!item) return;
+    if (!confirm('Excluir o modelo "' + (item.title || "") + '"? Esta ação não pode ser desfeita.')) return;
+    setBusy(button, true, "Excluindo");
+    try {
+      const { error } = await supabase.from("office_templates").delete().eq("id", id).eq("firm_id", state.firm.id);
+      if (error) throw error;
+      toast("Modelo excluído.");
+      core.logActivity("template.deleted", "template", id, "Modelo excluído: " + (item.title || ""));
+      await core.loadData();
+    } catch (error) {
+      toast(error.message || "Não foi possível excluir o modelo.", "err");
+    } finally {
+      setBusy(button, false);
+    }
   }
 
   $("#templateForm")?.addEventListener("submit", async (event) => {
@@ -732,12 +858,14 @@
           .eq("id", state.editingTemplateId).eq("firm_id", state.firm.id);
         if (error) throw error;
         toast("Modelo atualizado.");
+        core.logActivity("template.updated", "template", state.editingTemplateId, "Modelo editado: " + payload.title);
       } else {
-        const { error } = await supabase.from("office_templates").insert({
+        const { data: created, error } = await supabase.from("office_templates").insert({
           ...payload, firm_id: state.firm.id, created_by: state.user.id
-        });
+        }).select("id").single();
         if (error) throw error;
         toast("Modelo criado.");
+        core.logActivity("template.created", "template", created?.id, "Modelo criado: " + payload.title);
       }
       closeDialog("templateDialog");
       await core.loadData();
@@ -768,7 +896,12 @@
         '<td>' + esc(item.category || "—") + '</td>' +
         '<td>' + badge(item.active ? "Ativo" : "Inativo", item.active ? "ok" : "") + '</td>' +
         '<td class="message-cell"><div class="message-preview">' + esc(preview) + '</div></td>' +
-        '<td><div class="row-actions"><button class="btn secondary sm" data-edit-template="' + esc(item.id) + '">Editar</button></div></td>' +
+        '<td><div class="row-actions">' +
+          '<button class="btn secondary sm" data-generate-template="' + esc(item.id) + '">Gerar</button>' +
+          '<button class="btn ghost sm" data-duplicate-template="' + esc(item.id) + '">Duplicar</button>' +
+          '<button class="btn ghost sm" data-edit-template="' + esc(item.id) + '">Editar</button>' +
+          '<button class="btn ghost sm" data-delete-template="' + esc(item.id) + '">Excluir</button>' +
+        '</div></td>' +
       '</tr>';
     }).join("") : '<tr><td colspan="6" class="empty">Nenhum modelo encontrado.</td></tr>';
   }
@@ -793,6 +926,43 @@
     openDialog("documentDialog");
   }
 
+  // Envia um arquivo ao armazenamento privado e cria o registro em "documents".
+  // Usado pelo formulário de documentos e pelo gerador de documentos.
+  async function uploadCaseDocument({ file, caseId, documentType = "outro", notes = null }) {
+    if (!file || !caseId) throw new Error("Selecione o processo e o arquivo.");
+    if (file.size > 25 * 1024 * 1024) throw new Error("O arquivo ultrapassa o limite de 25 MB.");
+    const safeName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-");
+    const path = state.firm.id + "/" + caseId + "/" + Date.now() + "-" + safeName;
+
+    const { error: uploadError } = await supabase.storage.from("case-documents").upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.type || undefined
+    });
+    if (uploadError) throw uploadError;
+
+    const { data: createdDoc, error: rowError } = await supabase.from("documents").insert({
+      firm_id: state.firm.id,
+      case_id: caseId,
+      uploaded_by: state.user.id,
+      name: file.name,
+      storage_path: path,
+      mime_type: file.type || null,
+      size_bytes: file.size,
+      visibility: "internal",
+      document_type: documentType || "outro",
+      notes: notes || null
+    }).select("id").single();
+
+    if (rowError) {
+      await supabase.storage.from("case-documents").remove([path]);
+      throw rowError;
+    }
+    core.logActivity("document.uploaded", "document", createdDoc?.id, "Documento enviado: " + file.name, { case_id: caseId, size_bytes: file.size });
+    return createdDoc?.id || null;
+  }
+
   $("#documentForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const button = event.submitter;
@@ -806,36 +976,12 @@
     }
 
     setBusy(button, true, "Enviando");
-    const safeName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-");
-    const path = state.firm.id + "/" + caseId + "/" + Date.now() + "-" + safeName;
-
     try {
-      const { error: uploadError } = await supabase.storage.from("case-documents").upload(path, file, {
-        cacheControl: "3600",
-        upsert: false,
-        contentType: file.type || undefined
-      });
-      if (uploadError) throw uploadError;
-
-      const { error: rowError } = await supabase.from("documents").insert({
-        firm_id: state.firm.id,
-        case_id: caseId,
-        uploaded_by: state.user.id,
-        name: file.name,
-        storage_path: path,
-        mime_type: file.type || null,
-        size_bytes: file.size,
-        visibility: "internal",
-        document_type: $("#documentType").value || "outro",
+      await uploadCaseDocument({
+        file, caseId,
+        documentType: $("#documentType").value || "outro",
         notes: $("#documentNotes").value.trim() || null
       });
-
-      if (rowError) {
-        await supabase.storage.from("case-documents").remove([path]);
-        throw rowError;
-      }
-
       closeDialog("documentDialog");
       toast("Documento enviado com segurança.");
       await core.loadData();
@@ -884,6 +1030,7 @@
         throw new Error("Arquivo removido, mas o registro não pôde ser excluído. Recarregue a lista e procure o suporte técnico.");
       }
       toast("Documento excluído.");
+      core.logActivity("document.deleted", "document", doc.id, "Documento excluído: " + (doc.name || ""), { case_id: doc.case_id || null });
       await core.loadData();
     } catch (error) {
       toast(error.message || "Não foi possível excluir o documento.", "err");
@@ -1071,6 +1218,8 @@
     $("#caseTaskList").innerHTML = tasks.length ? tasks.map((x) =>
       '<div class="event ' + (isOverdue(x.due_at, x.status) ? "urgent" : "") + '"><strong>' + esc(x.title) + '</strong><small>' + (x.due_at ? brDate(x.due_at) + " • " : "") + esc(taskStatusLabels[x.status] || x.status) + '</small></div>'
     ).join("") : '<div class="empty">Sem tarefas vinculadas.</div>';
+
+    window.AdvogaFeatures?.renderCaseTimeline?.(id);
   }
 
   async function toggleChecklist(b) {
@@ -1081,6 +1230,9 @@
         .update({ is_done: nextDone, done_at: nextDone ? new Date().toISOString() : null })
         .eq("id", b.dataset.toggleChecklist).eq("firm_id", state.firm.id);
       if (error) throw error;
+      const item = state.checklistItems.find((x) => x.id === b.dataset.toggleChecklist);
+      core.logActivity(nextDone ? "checklist.completed" : "checklist.reopened", "checklist", b.dataset.toggleChecklist,
+        (nextDone ? "Checklist concluído: " : "Checklist reaberto: ") + (item?.label || ""), { case_id: item?.case_id || null });
       await core.loadData();
       renderCaseWorkspace();
     } catch (error) {
@@ -1115,6 +1267,7 @@
         created_by: state.user.id
       });
       if (error) throw error;
+      core.logActivity("checklist.created", "checklist", null, "Item de checklist criado: " + $("#checklistLabel").value.trim(), { case_id: caseId });
       $("#checklistForm").reset();
       toast("Item adicionado ao checklist.");
       await core.loadData();
@@ -1353,6 +1506,9 @@
     ["data-edit-lead", (b) => openLeadDialog(b.dataset.editLead)],
     ["data-convert-lead", (b) => convertLead(b.dataset.convertLead)],
     ["data-edit-template", (b) => openTemplateDialog(b.dataset.editTemplate)],
+    ["data-duplicate-template", (b) => duplicateTemplate(b.dataset.duplicateTemplate)],
+    ["data-delete-template", (b) => deleteTemplate(b.dataset.deleteTemplate, b)],
+    ["data-deadline-bucket", (b) => { $("#deadlineFilter").value = b.dataset.deadlineBucket; renderDeadlines(); }],
     ["data-download-document", (b) => downloadDocument(b.dataset.downloadDocument, b)],
     ["data-delete-document", (b) => deleteDocument(b.dataset.deleteDocument, b)],
     ["data-toggle-checklist", (b) => toggleChecklist(b)],
@@ -1561,6 +1717,7 @@
     renderCaseHealthBadges();
     renderConflictSearch();
     renderReports();
+    window.AdvogaFeatures?.renderAll?.();
     if (!$("#globalSearchResults")?.classList.contains("hidden")) renderGlobalSearch();
     if (state.activeClientFileId && $("#clientFileDialog")?.open) renderClientFile();
     if (state.activeCaseWorkspaceId && $("#caseWorkspaceDialog")?.open) renderCaseWorkspace();
@@ -1601,7 +1758,7 @@
   $("#newTemplateBtn")?.addEventListener("click", () => openTemplateDialog());
   $("#newLeadBtn")?.addEventListener("click", () => openLeadDialog());
 
-  ["deadlineSearch","deadlineFilter"].forEach((id) => $("#" + id)?.addEventListener("input", renderDeadlines));
+  ["deadlineSearch","deadlineFilter","deadlinePriorityFilter"].forEach((id) => $("#" + id)?.addEventListener("input", renderDeadlines));
   ["taskSearch","taskFilter"].forEach((id) => $("#" + id)?.addEventListener("input", renderTasks));
   $("#agendaFilter")?.addEventListener("input", renderAgenda);
   ["financeSearch","financeFilter"].forEach((id) => $("#" + id)?.addEventListener("input", renderFinance));
@@ -1640,5 +1797,17 @@
   $("#conflictSearch")?.addEventListener("input", renderConflictSearch);
   $("#printReportBtn")?.addEventListener("click", () => window.print());
 
-  window.AdvogaOrganizer = { loadData, renderAll, renderCaseHealthBadges };
+  window.AdvogaOrganizer = {
+    loadData, renderAll, renderCaseHealthBadges,
+    // Reaproveitados por features.js (linha do tempo, alertas, gerador e atividades).
+    helpers: {
+      money, todayKey, isToday, isOverdue, keyToDate, addDaysKey, dayTitle, capitalize, timeFormatter,
+      responsibleLabel, effectiveFinanceStatus, financeIsReceivable, formatBytes, clientOptions, caseOptions,
+      deadlineBucket, deadlineCountdown, daysFromToday, sortDeadlines, priorityWeight,
+      priorityLabels, priorityTypes, deadlineStatusLabels, deadlineTypeLabels, taskStatusLabels, eventTypeLabels,
+      financeTypeLabels, financeStatusLabels, templateTypeLabels,
+      openDeadlineDialog, openTaskDialog, openEventDialog, openFinanceDialog, openCaseWorkspace, openClientFile,
+      openTemplateDialog, openLeadDialog, downloadDocument, uploadCaseDocument
+    }
+  };
 })();

@@ -53,7 +53,8 @@ button,input,select,textarea{font:inherit}
 button{cursor:pointer}
 button:disabled{cursor:not-allowed;opacity:.5}
 .preview-mode [data-retry-update],.preview-mode [data-complete-deadline],.preview-mode [data-complete-task],
-.preview-mode [data-convert-lead],.preview-mode [data-delete-document],.preview-mode [data-toggle-checklist]{cursor:not-allowed;opacity:.5}
+.preview-mode [data-convert-lead],.preview-mode [data-delete-document],.preview-mode [data-toggle-checklist],
+.preview-mode [data-delete-template]{cursor:not-allowed;opacity:.5}
 a{color:inherit}
 ::selection{background:rgba(31,35,41,.14)}
 :focus-visible{outline:2px solid rgba(31,35,41,.35);outline-offset:2px}
@@ -442,6 +443,136 @@ dialog[open]{animation:dialogIn .18s ease-out}
   .cal-item{gap:8px;padding:9px 10px}
 }
 
+/* ---------- Componentes compartilhados das novas áreas ---------- */
+.ico{width:18px;height:18px;display:block}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.panel-head h3{margin:0}
+.chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;font-size:12px;font-weight:500;
+  border:1px solid var(--glass-edge);background:var(--glass-soft);color:var(--muted);transition:background .15s ease,color .15s ease;
+}
+.chip span{font-size:11px;color:var(--muted-2);font-variant-numeric:tabular-nums}
+.chip:hover{background:var(--glass-strong);color:var(--text)}
+.chip.is-active{background:var(--accent);border-color:var(--accent);color:#fff}
+.chip.is-active span{color:rgba(255,255,255,.7)}
+dialog.wide{width:min(980px,calc(100% - 28px))}
+
+/* Alertas de prazos (visão geral) */
+.alerts-panel{margin-top:12px}
+.alert-list{display:grid;gap:8px}
+.alert-item{
+  width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:11px 13px;color:var(--text);
+  border:1px solid var(--glass-edge);border-left:3px solid var(--warning);border-radius:13px;background:var(--glass-soft);
+  transition:background .15s ease;
+}
+.alert-item:hover{background:var(--glass-strong)}
+.alert-item.tone-err{border-left-color:var(--danger);background:rgba(252,236,236,.55)}
+.alert-icon{flex:0 0 auto;color:var(--warning)}
+.alert-item.tone-err .alert-icon{color:var(--danger)}
+.alert-body{flex:1;min-width:0;display:grid;gap:1px}
+.alert-body small{font-size:12px;font-weight:600;color:var(--warning)}
+.alert-item.tone-err .alert-body small{color:var(--danger)}
+.alert-body strong{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.alert-meta{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.alert-more{justify-self:start}
+
+/* Central de prazos */
+.bucket-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.bucket-card{
+  display:grid;gap:4px;text-align:left;padding:12px 13px;border-radius:15px;color:var(--text);
+  border:1px solid var(--glass-edge);background:var(--glass);box-shadow:var(--shadow);
+  -webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);transition:transform .15s ease,background .15s ease;
+}
+.bucket-card:hover{background:var(--glass-strong);transform:translateY(-1px)}
+.bucket-card span{font-size:12px;color:var(--muted)}
+.bucket-card b{font-size:24px;font-weight:650;letter-spacing:-.03em;line-height:1.1}
+.bucket-card.tone-err b{color:var(--danger)}
+.bucket-card.tone-warn b{color:var(--warning)}
+.bucket-card.tone-ok b{color:var(--ok)}
+.bucket-card.is-active{box-shadow:0 0 0 2px var(--accent),var(--shadow);background:var(--glass-strong)}
+.deadline-row.bucket-overdue td:first-child{box-shadow:inset 3px 0 0 var(--danger)}
+.deadline-row.bucket-today td:first-child,.deadline-row.bucket-tomorrow td:first-child{box-shadow:inset 3px 0 0 var(--warning)}
+.deadline-row.bucket-completed{opacity:.72}
+.badge-stack{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+#deadlinesBody .row-actions{flex-direction:column;align-items:stretch;flex-wrap:nowrap}
+@media(max-width:620px){.badge-stack{flex-direction:row;flex-wrap:wrap}}
+
+/* Linha do tempo do processo */
+.tl{display:grid;gap:8px;position:relative}
+.tl-day{margin:8px 0 2px;font-size:12px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.tl-day:first-child{margin-top:0}
+.tl-item{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start}
+.tl-icon{
+  width:34px;height:34px;border-radius:11px;display:grid;place-items:center;color:var(--text);
+  border:1px solid var(--glass-edge);background:var(--glass-strong);box-shadow:var(--glass-highlight);
+}
+.tl-deadline .tl-icon{color:var(--danger)}.tl-agenda .tl-icon{color:var(--info)}.tl-task .tl-icon{color:var(--warning)}
+.tl-finance .tl-icon{color:var(--ok)}.tl-message .tl-icon{color:#2d7d8a}.tl-change .tl-icon{color:var(--muted)}
+.tl-card{padding:10px 13px;border:1px solid var(--glass-edge);border-radius:13px;background:var(--glass-soft);min-width:0}
+.tl-item.is-future .tl-card{border-style:dashed}
+.tl-top{display:flex;justify-content:space-between;gap:10px;font-size:11px;color:var(--muted)}
+.tl-type{font-weight:650;letter-spacing:.05em;text-transform:uppercase}
+.tl-time{font-variant-numeric:tabular-nums;white-space:nowrap}
+.tl-title{display:block;font-weight:600;margin-top:3px;overflow-wrap:anywhere}
+.tl-desc{margin:3px 0 0;font-size:13px;color:#3b4048;overflow-wrap:anywhere}
+.tl-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:8px;font-size:12px;color:var(--muted)}
+.tl-actions{margin-left:auto;display:flex;gap:6px}
+
+/* Gerador de documentos */
+.var-chips{display:flex;flex-wrap:wrap;gap:6px}
+.var-chip{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px}
+.gen-step-actions{display:flex;justify-content:flex-end;margin-top:14px}
+.doc-paper{
+  min-height:360px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px 26px;
+  font:14px/1.7 Georgia,"Times New Roman",serif;color:#111;box-shadow:inset 0 1px 3px rgba(20,24,31,.05);
+}
+.doc-paper:focus{background:#fff}
+
+/* Detalhes genéricos */
+.detail-fields{display:grid;grid-template-columns:minmax(120px,32%) minmax(0,1fr);gap:8px 14px;margin:12px 0 0}
+.detail-fields dt{font-size:12px;color:var(--muted)}
+.detail-fields dd{margin:0;overflow-wrap:anywhere}
+#detailText{margin-top:14px;font-family:inherit;font-size:14px}
+
+/* Atividades */
+.activity-list{display:grid;gap:6px}
+.activity-item{display:flex;align-items:center;gap:11px;padding:9px 12px;border:1px solid var(--glass-edge);border-radius:12px;background:var(--glass-soft)}
+.activity-item .tl-icon{flex:0 0 auto;width:30px;height:30px;border-radius:10px}
+.activity-body{flex:1;min-width:0;display:grid}
+.activity-body strong{font-weight:600;overflow-wrap:anywhere}
+.activity-body small{font-size:12px;color:var(--muted)}
+
+.print-area{display:none}
+
+@media(max-width:1080px){
+  .bucket-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media(max-width:620px){
+  .bucket-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .bucket-card{padding:10px 11px}
+  .bucket-card b{font-size:20px}
+  .tl-item{grid-template-columns:28px minmax(0,1fr);gap:8px}
+  .tl-icon{width:28px;height:28px;border-radius:9px}
+  .tl-icon .ico{width:15px;height:15px}
+  .tl-actions{margin-left:0;width:100%}
+  .tl-actions .btn{flex:1}
+  .chip-row{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .chip-row::-webkit-scrollbar{display:none}
+  .chip{flex:0 0 auto}
+  .doc-paper{padding:16px;min-height:280px}
+  .detail-fields{grid-template-columns:1fr;gap:2px}
+  .detail-fields dd{margin-bottom:8px}
+  .activity-item{flex-wrap:wrap}
+  .activity-item .btn{margin-left:41px}
+  .alert-item .badge{display:none}
+  .toolbar > .small{width:100%}
+  .timeline-panel{padding:12px}
+  .panel-head h3{white-space:nowrap}
+  #deadlinesBody .row-actions{flex-direction:row}
+  dialog.wide{width:calc(100% - 16px)}
+}
+
 /* Navegadores sem vidro fosco: painéis ficam mais opacos para manter a leitura. */
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
   .card,.global-search-results,.toast,tbody tr{background:rgba(255,255,255,.92)}
@@ -461,4 +592,9 @@ dialog[open]{animation:dialogIn .18s ease-out}
   .card{box-shadow:none;background:#fff;color:#000;border:1px solid #ccc;-webkit-backdrop-filter:none;backdrop-filter:none}
   .muted,.small,.metric span,.event small{color:#444!important}
   .dashboard-grid{grid-template-columns:1fr 1fr}
+  /* Impressão do gerador de documentos: só o texto do documento. */
+  body.print-doc > *:not(#printArea),body.print-doc #app,body.print-doc #landing{display:none!important}
+  body.print-doc #printArea{display:block!important}
+  body.print-doc .print-doc-body{white-space:pre-wrap;font:12pt/1.6 Georgia,"Times New Roman",serif;color:#000}
 }
+@page{margin:2cm}

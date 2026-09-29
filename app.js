@@ -14,6 +14,10 @@
   const PREVIEW_MESSAGE = "Modo preview (somente leitura): nenhuma alteração é gravada nos dados reais.";
   const TIME_ZONE = "America/Sao_Paulo";
 
+  // Histórico de atividades: a tabela "activity_logs" ainda não existe no Supabase.
+  // Ao criá-la (ver docs/supabase-pendencias.md), mude para true para gravar e ler os registros.
+  const ACTIVITY_LOG_ENABLED = false;
+
   const rawSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   const supabase = PREVIEW_READ_ONLY ? readOnlyClient(rawSupabase) : rawSupabase;
 
@@ -220,6 +224,33 @@
     if (dialog?.open) dialog.close();
   }
 
+  // Campos que mudaram entre o registro atual e o payload salvo (para o histórico).
+  function changedFields(before, after) {
+    if (!before) return [];
+    const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+    return Object.keys(after).filter((key) => !same(before[key], after[key]));
+  }
+
+  // Registra uma atividade importante. Nunca interrompe o fluxo principal:
+  // falhas (tabela ausente, permissão) só geram aviso no console.
+  async function logActivity(action, entityType, entityId, summary, metadata = {}) {
+    if (!ACTIVITY_LOG_ENABLED || PREVIEW_READ_ONLY || !state.firm || !state.user) return;
+    try {
+      const { error } = await supabase.from("activity_logs").insert({
+        firm_id: state.firm.id,
+        actor_id: state.user.id,
+        action,
+        entity_type: entityType,
+        entity_id: entityId || null,
+        summary: String(summary || "").slice(0, 300),
+        metadata,
+      });
+      if (error) console.warn("Histórico não registrado:", error.message);
+    } catch (error) {
+      console.warn("Histórico não registrado:", error);
+    }
+  }
+
   function badge(text, type = "") {
     return `<span class="badge ${type}">${esc(text)}</span>`;
   }
@@ -334,7 +365,7 @@
     }
   });
 
-  const validSections = new Set(["overview","clients","cases","deadlines","agenda","tasks","finance","documents","templates","crm","reports","movements","messages","settings"]);
+  const validSections = new Set(["overview","clients","cases","deadlines","agenda","tasks","finance","documents","templates","crm","reports","movements","messages","activity","settings"]);
 
   function switchSection(section, options = {}) {
     if (!validSections.has(section)) section = "overview";
@@ -444,6 +475,7 @@
 
     try {
       if (state.editingClientId) {
+        const before = clientById(state.editingClientId);
         const { error } = await supabase
           .from("clients")
           .update(payload)
@@ -451,14 +483,16 @@
           .eq("firm_id", state.firm.id);
         if (error) throw error;
         toast("Cliente atualizado.");
+        logActivity("client.updated", "client", state.editingClientId, "Cliente editado: " + payload.full_name, { fields: changedFields(before, payload) });
       } else {
-        const { error } = await supabase.from("clients").insert({
+        const { data: created, error } = await supabase.from("clients").insert({
           ...payload,
           firm_id: state.firm.id,
           created_by: state.user.id,
-        });
+        }).select("id").single();
         if (error) throw error;
         toast("Cliente cadastrado.");
+        logActivity("client.created", "client", created?.id, "Cliente criado: " + payload.full_name);
       }
       closeDialog("clientDialog");
       await loadData();
@@ -547,6 +581,7 @@
 
     try {
       if (state.editingCaseId) {
+        const before = caseById(state.editingCaseId);
         const { error } = await supabase
           .from("cases")
           .update(payload)
@@ -554,14 +589,19 @@
           .eq("firm_id", state.firm.id);
         if (error) throw error;
         toast("Processo atualizado.");
+        logActivity("case.updated", "case", state.editingCaseId, "Processo editado: " + payload.title, {
+          case_id: state.editingCaseId, fields: changedFields(before, payload),
+          status_from: before?.status, status_to: payload.status,
+        });
       } else {
-        const { error } = await supabase.from("cases").insert({
+        const { data: created, error } = await supabase.from("cases").insert({
           ...payload,
           firm_id: state.firm.id,
           created_by: state.user.id,
-        });
+        }).select("id").single();
         if (error) throw error;
         toast("Processo cadastrado.");
+        logActivity("case.created", "case", created?.id, "Processo criado: " + payload.title, { case_id: created?.id });
       }
       closeDialog("caseDialog");
       await loadData();
@@ -730,10 +770,11 @@
     const button = event.submitter;
     setBusy(button, true, "Salvando");
     try {
-      const { error } = await supabase.from("case_updates").insert(data);
+      const { data: created, error } = await supabase.from("case_updates").insert(data).select("id").single();
       if (error) throw error;
       closeDialog("movementDialog");
       toast("Movimentação salva sem enviar mensagem.");
+      logActivity("movement.created", "movement", created?.id, "Movimentação registrada: " + data.title, { case_id: data.case_id });
       await loadData();
     } catch (error) {
       setStatus($("#movementStatus"), error.message || "Não foi possível salvar a movimentação.", "err");
@@ -762,6 +803,7 @@
         .select("*")
         .single();
       if (error) throw error;
+      logActivity("movement.created", "movement", created.id, "Movimentação registrada e enviada: " + data.title, { case_id: data.case_id });
 
       try {
         await invokeWhatsapp({
@@ -1260,6 +1302,9 @@
     dateKey,
     TIME_ZONE,
     PREVIEW_READ_ONLY,
+    ACTIVITY_LOG_ENABLED,
+    logActivity,
+    changedFields,
     PREVIEW_MESSAGE,
     toast,
     setStatus,
@@ -1299,7 +1344,7 @@
     const writeButtonIds = [
       "clientSaveBtn","caseSaveBtn","movementSaveBtn","confirmSendBtn","deadlineSaveBtn",
       "taskSaveBtn","eventSaveBtn","financeSaveBtn","documentUploadBtn","templateSaveBtn",
-      "leadSaveBtn","interactionSaveBtn","checklistSaveBtn"
+      "leadSaveBtn","interactionSaveBtn","checklistSaveBtn","genSaveBtn"
     ];
     writeButtonIds.forEach((id) => {
       const button = $("#" + id);
@@ -1309,7 +1354,7 @@
     });
     $("#documentFile")?.setAttribute("disabled", "");
     document.addEventListener("click", (event) => {
-      const mutation = event.target.closest?.("[data-retry-update],[data-complete-deadline],[data-complete-task],[data-convert-lead],[data-delete-document],[data-toggle-checklist]");
+      const mutation = event.target.closest?.("[data-retry-update],[data-complete-deadline],[data-complete-task],[data-convert-lead],[data-delete-document],[data-toggle-checklist],[data-delete-template],[data-gen-save]");
       if (!mutation) return;
       event.preventDefault();
       event.stopImmediatePropagation();

@@ -21,3 +21,15 @@ O login e a leitura dos dados continuam funcionando. Ao levar o código para o r
 
 - Datas e horas são digitadas e exibidas sempre no horário de Brasília (`America/Sao_Paulo`), independentemente do fuso do aparelho.
 - As bibliotecas externas têm versão fixa e hash de integridade (SRI) em `index.html`. Ao atualizar uma versão, recalcule o hash.
+
+## Estrutura
+
+- `app.js`: núcleo. Faz a conexão com o Supabase, com o bloqueio de preview, e cuida de autenticação, clientes, processos, movimentações, WhatsApp e do registro de atividades (`logActivity`).
+- `organizer.js`: prazos (central por vencimento), agenda, tarefas, financeiro, documentos, modelos, CRM, relatórios, calendário e pesquisa universal.
+- `features.js`: linha do tempo do processo, alertas de prazos no painel, gerador de documentos e tela de Atividades.
+- `sw.js`: service worker da PWA. Ao alterar arquivos principais, aumente `ASSET_VERSION` e o `?v=` em `index.html`.
+- `docs/supabase-pendencias.md`: tabelas, colunas e policies necessárias no Supabase, ainda **não aplicadas**.
+
+## Histórico de atividades
+
+`ACTIVITY_LOG_ENABLED = false` em `app.js` enquanto a tabela `activity_logs` não existir. Nesse modo, a tela Atividades mostra um histórico reconstruído a partir das datas dos registros.

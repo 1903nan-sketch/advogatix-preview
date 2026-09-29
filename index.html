@@ -13,7 +13,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
-  <link rel="stylesheet" href="./styles.css?v=7" />
+  <link rel="stylesheet" href="./styles.css?v=8" />
 </head>
 <body>
   <div id="previewBanner" class="preview-banner hidden" role="status">
@@ -136,6 +136,7 @@
             <button data-section="reports">Relatórios</button>
             <button data-section="movements">Movimentações</button>
             <button data-section="messages">Mensagens</button>
+            <button data-section="activity">Atividades</button>
             <button data-section="settings">Configurações</button>
           </nav>
         </aside>
@@ -174,6 +175,14 @@
                 <div class="metric-label"><span>WhatsApps enviados</span><span class="metric-icon">↗</span></div>
                 <b id="mMessages">0</b>
               </div>
+            </div>
+
+            <div class="card panel alerts-panel">
+              <div class="panel-head">
+                <h3>Alertas de prazos</h3>
+                <button class="btn ghost sm" type="button" data-goto-section="deadlines">Central de prazos</button>
+              </div>
+              <div id="deadlineAlerts" class="alert-list"></div>
             </div>
 
             <div class="card panel calendar-panel">
@@ -337,19 +346,31 @@
             <div class="page-head">
               <div>
                 <h2>Prazos</h2>
-                <p>Controle prazos processuais e internos com prioridade, origem e responsável identificado.</p>
+                <p>Controle prazos processuais e internos com prioridade, origem e responsável identificado. Horário de Brasília.</p>
               </div>
               <button id="newDeadlineBtn" class="btn" type="button">Novo prazo</button>
             </div>
+            <div id="deadlineBuckets" class="bucket-grid" aria-label="Resumo dos prazos por vencimento"></div>
             <div class="toolbar">
               <div class="filters">
                 <div class="search"><input id="deadlineSearch" type="search" placeholder="Buscar prazo, cliente ou processo" /></div>
-                <select id="deadlineFilter" aria-label="Filtrar prazos">
-                  <option value="open">Abertos</option>
+                <select id="deadlineFilter" aria-label="Filtrar prazos por vencimento">
+                  <option value="open">Todos os abertos</option>
                   <option value="overdue">Vencidos</option>
                   <option value="today">Vencem hoje</option>
-                  <option value="all">Todos</option>
+                  <option value="tomorrow">Vencem amanhã</option>
+                  <option value="next3">Próximos 3 dias</option>
+                  <option value="next7">Próximos 7 dias</option>
+                  <option value="future">Futuros</option>
                   <option value="completed">Concluídos</option>
+                  <option value="all">Todos</option>
+                </select>
+                <select id="deadlinePriorityFilter" aria-label="Filtrar prazos por prioridade">
+                  <option value="all">Todas as prioridades</option>
+                  <option value="urgent">Urgente</option>
+                  <option value="high">Alta</option>
+                  <option value="normal">Normal</option>
+                  <option value="low">Baixa</option>
                 </select>
               </div>
               <span id="deadlineCount" class="small"></span>
@@ -357,7 +378,7 @@
             <div class="card table-card">
               <div class="tablewrap">
                 <table>
-                  <thead><tr><th>Prazo</th><th>Cliente / Processo</th><th>Responsável</th><th>Vencimento</th><th>Prioridade</th><th>Status</th><th></th></tr></thead>
+                  <thead><tr><th>Prazo / Responsável</th><th>Processo / Cliente</th><th>Vencimento</th><th>Dias restantes</th><th>Prioridade / Status</th><th></th></tr></thead>
                   <tbody id="deadlinesBody"></tbody>
                 </table>
               </div>
@@ -496,9 +517,12 @@
             <div class="page-head">
               <div>
                 <h2>Modelos do escritório</h2>
-                <p>Textos reutilizáveis para WhatsApp, e-mail e documentos.</p>
+                <p>Textos reutilizáveis para WhatsApp, e-mail e documentos, com variáveis preenchidas pelos dados cadastrados.</p>
               </div>
-              <button id="newTemplateBtn" class="btn" type="button">Novo modelo</button>
+              <div class="actions-row">
+                <button id="openGeneratorBtn" class="btn secondary" type="button">Gerar documento</button>
+                <button id="newTemplateBtn" class="btn" type="button">Novo modelo</button>
+              </div>
             </div>
 
             <div class="toolbar">
@@ -649,6 +673,45 @@
                   <tbody id="messagesBody"></tbody>
                 </table>
               </div>
+            </div>
+          </section>
+
+          <section id="section-activity" class="section">
+            <div class="page-head">
+              <div>
+                <h2>Atividades</h2>
+                <p>Histórico do que foi criado e alterado no escritório.</p>
+              </div>
+            </div>
+            <div id="activityNotice" class="notice hidden" style="margin-bottom:12px"></div>
+            <div class="toolbar">
+              <div class="filters">
+                <div class="search"><input id="activitySearch" type="search" placeholder="Buscar atividade, cliente ou processo" /></div>
+                <select id="activityType" aria-label="Filtrar atividades por tipo">
+                  <option value="all">Todos os tipos</option>
+                  <option value="client">Clientes</option>
+                  <option value="case">Processos</option>
+                  <option value="movement">Movimentações</option>
+                  <option value="deadline">Prazos</option>
+                  <option value="task">Tarefas</option>
+                  <option value="event">Agenda</option>
+                  <option value="document">Documentos</option>
+                  <option value="finance">Financeiro</option>
+                  <option value="message">Mensagens</option>
+                  <option value="template">Modelos</option>
+                  <option value="lead">CRM</option>
+                </select>
+                <select id="activityPeriod" aria-label="Filtrar atividades por período">
+                  <option value="7">Últimos 7 dias</option>
+                  <option value="30" selected>Últimos 30 dias</option>
+                  <option value="90">Últimos 90 dias</option>
+                  <option value="all">Todo o período</option>
+                </select>
+              </div>
+              <span id="activityCount" class="small"></span>
+            </div>
+            <div class="card panel">
+              <div id="activityList" class="activity-list"></div>
             </div>
           </section>
 
@@ -956,7 +1019,11 @@
         <div><label for="templateType">Tipo</label><select id="templateType"><option value="whatsapp">WhatsApp</option><option value="email">E-mail</option><option value="document">Documento</option></select></div>
         <div><label for="templateCategory">Categoria</label><input id="templateCategory" placeholder="Audiência, financeiro, contrato..." /></div>
         <div><label for="templateActive">Ativo</label><select id="templateActive"><option value="true">Sim</option><option value="false">Não</option></select></div>
-        <div class="full"><label for="templateContent">Conteúdo</label><textarea id="templateContent" required style="min-height:220px" placeholder="Escreva o texto do modelo"></textarea></div>
+        <div class="full"><label for="templateContent">Conteúdo</label><textarea id="templateContent" required style="min-height:220px" placeholder="Escreva o texto do modelo. Ex.: Eu, {{cliente_nome}}, CPF {{cliente_cpf}}..."></textarea></div>
+        <div class="full">
+          <label>Variáveis disponíveis <span class="small">(clique para inserir no texto)</span></label>
+          <div id="templateVarChips" class="var-chips"></div>
+        </div>
       </div>
       <div class="notice" style="margin-top:12px">Você pode usar textos genéricos e adaptar antes de enviar. O AdvogaTix não envia modelos automaticamente.</div>
       <div class="modal-actions"><button class="btn secondary" type="button" data-close>Cancelar</button><button id="templateSaveBtn" class="btn">Salvar modelo</button></div>
@@ -1033,7 +1100,7 @@
     </div>
   </dialog>
 
-  <dialog id="caseWorkspaceDialog">
+  <dialog id="caseWorkspaceDialog" class="wide">
     <div class="modal">
       <div class="modal-head">
         <div>
@@ -1044,6 +1111,15 @@
       </div>
 
       <div id="caseHealthBox" class="notice" style="margin-bottom:12px"></div>
+
+      <div class="card panel timeline-panel" style="box-shadow:none;margin-bottom:12px">
+        <div class="panel-head">
+          <h3>Linha do tempo</h3>
+          <button id="timelineOrderBtn" class="btn ghost sm" type="button" data-timeline-order>Mais recentes primeiro</button>
+        </div>
+        <div id="timelineFilters" class="chip-row" role="group" aria-label="Filtrar linha do tempo"></div>
+        <div id="caseTimeline" class="tl"></div>
+      </div>
 
       <div class="card panel" style="box-shadow:none;margin-bottom:12px">
         <h3>Checklist processual</h3>
@@ -1084,7 +1160,7 @@
         <div><label for="deadlineClient">Cliente</label><select id="deadlineClient"></select></div>
         <div><label for="deadlineType">Tipo</label><select id="deadlineType"><option value="processual">Processual</option><option value="appeal">Recurso</option><option value="administrative">Administrativo</option><option value="internal">Interno</option><option value="hearing">Audiência</option><option value="other">Outro</option></select></div>
         <div><label for="deadlineDue">Vencimento</label><input id="deadlineDue" type="datetime-local" required /></div>
-        <div><label for="deadlinePriority">Prioridade</label><select id="deadlinePriority"><option value="normal">Normal</option><option value="high">Alta</option><option value="urgent">Urgente</option><option value="low">Baixa</option></select></div>
+        <div><label for="deadlinePriority">Prioridade</label><select id="deadlinePriority"><option value="low">Baixa</option><option value="normal" selected>Normal</option><option value="high">Alta</option><option value="urgent">Urgente</option></select></div>
         <div><label for="deadlineStatus">Status</label><select id="deadlineStatus"><option value="pending">Pendente</option><option value="in_progress">Em andamento</option><option value="completed">Concluído</option><option value="cancelled">Cancelado</option></select></div>
         <div class="full"><label for="deadlineResponsible">Responsável pelo controle</label><input id="deadlineResponsible" readonly aria-describedby="deadlineResponsibleHelp" /><div id="deadlineResponsibleHelp" class="field-help">No cadastro atual, o controle fica vinculado ao usuário que criou o prazo.</div></div>
         <div class="full"><label for="deadlineSource">Origem</label><input id="deadlineSource" placeholder="Ex.: DJEN, intimação, cliente, controle interno" /></div>
@@ -1106,7 +1182,7 @@
         <div><label for="taskCase">Processo</label><select id="taskCase"></select></div>
         <div><label for="taskClient">Cliente</label><select id="taskClient"></select></div>
         <div><label for="taskDue">Vencimento</label><input id="taskDue" type="datetime-local" /></div>
-        <div><label for="taskPriority">Prioridade</label><select id="taskPriority"><option value="normal">Normal</option><option value="high">Alta</option><option value="urgent">Urgente</option><option value="low">Baixa</option></select></div>
+        <div><label for="taskPriority">Prioridade</label><select id="taskPriority"><option value="low">Baixa</option><option value="normal" selected>Normal</option><option value="high">Alta</option><option value="urgent">Urgente</option></select></div>
         <div><label for="taskStatus">Status</label><select id="taskStatus"><option value="todo">A fazer</option><option value="in_progress">Em andamento</option><option value="waiting">Aguardando</option><option value="completed">Concluída</option><option value="cancelled">Cancelada</option></select></div>
         <div class="full"><label for="taskResponsible">Responsável</label><input id="taskResponsible" readonly aria-describedby="taskResponsibleHelp" /><div id="taskResponsibleHelp" class="field-help">A tarefa é atribuída automaticamente ao usuário atual.</div></div>
         <div class="full"><label for="taskDescription">Descrição</label><textarea id="taskDescription" placeholder="Detalhes da atividade"></textarea></div>
@@ -1264,7 +1340,7 @@
 
       <div class="modal-actions">
         <button class="btn secondary" type="button" data-close>Cancelar</button>
-        <button class="btn ghost" type="submit" value="save">Salvar somente</button>
+        <button id="movementSaveBtn" class="btn ghost" type="submit" value="save">Salvar somente</button>
         <button class="btn" type="submit" value="send">Revisar e enviar</button>
       </div>
       <div id="movementStatus" class="status"></div>
@@ -1291,11 +1367,56 @@
     </div>
   </dialog>
 
+  <dialog id="generatorDialog" class="wide">
+    <div class="modal">
+      <div class="modal-head">
+        <div><h3>Gerar documento</h3><p>Escolha o modelo, o cliente e o processo. As variáveis são preenchidas com os dados cadastrados.</p></div>
+        <button class="btn ghost close-x" type="button" data-close>×</button>
+      </div>
+      <div class="modal-grid">
+        <div class="full"><label for="genTemplate">Modelo</label><select id="genTemplate"></select></div>
+        <div><label for="genClient">Cliente</label><select id="genClient"></select></div>
+        <div><label for="genCase">Processo</label><select id="genCase"></select></div>
+        <div><label for="genLawyer">Advogado(a) responsável</label><input id="genLawyer" placeholder="Nome que aparecerá no documento" /></div>
+        <div><label for="genTitle">Nome do documento</label><input id="genTitle" placeholder="Ex.: Procuração - Maria Silva" /></div>
+      </div>
+      <div class="gen-step-actions">
+        <button id="genPreviewBtn" class="btn" type="button">Pré-visualizar</button>
+      </div>
+      <div id="genPreviewWrap" class="hidden">
+        <div id="genWarnings" class="notice hidden" style="margin:14px 0 10px"></div>
+        <label for="genOutput">Pré-visualização <span class="small">(pode ajustar o texto antes de finalizar)</span></label>
+        <textarea id="genOutput" class="doc-paper" spellcheck="true"></textarea>
+        <div class="modal-actions">
+          <button id="genCopyBtn" class="btn secondary" type="button">Copiar texto</button>
+          <button id="genPrintBtn" class="btn secondary" type="button">Imprimir / salvar PDF</button>
+          <button id="genSaveBtn" class="btn" type="button" data-gen-save>Salvar no sistema</button>
+        </div>
+      </div>
+      <div id="genStatusMsg" class="status"></div>
+    </div>
+  </dialog>
+
+  <dialog id="detailDialog">
+    <div class="modal">
+      <div class="modal-head">
+        <div><h3 id="detailTitle">Detalhes</h3><p id="detailSubtitle"></p></div>
+        <button class="btn ghost close-x" type="button" data-close>×</button>
+      </div>
+      <dl id="detailFields" class="detail-fields"></dl>
+      <div id="detailText" class="preview hidden"></div>
+      <div class="modal-actions"><button class="btn secondary" type="button" data-close>Fechar</button></div>
+    </div>
+  </dialog>
+
+  <div id="printArea" class="print-area" aria-hidden="true"></div>
+
   <div id="toastWrap" class="toast-wrap" aria-live="polite"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" integrity="sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU" crossorigin="anonymous"></script>
-  <script src="./app.js?v=7"></script>
-  <script src="./organizer.js?v=7"></script>
+  <script src="./app.js?v=8"></script>
+  <script src="./organizer.js?v=8"></script>
+  <script src="./features.js?v=8"></script>
 </body>
 </html>
