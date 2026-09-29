@@ -1,9 +1,9 @@
 // Ao publicar uma nova versão, aumente ASSET_VERSION aqui e o ?v= em index.html.
-const ASSET_VERSION = "9";
+const ASSET_VERSION = "10";
 const CACHE = "advogatix-preview-v" + ASSET_VERSION;
 const SHELL = [
   "./", "./index.html",
-  "./styles.css?v=" + ASSET_VERSION, "./admin.js?v=" + ASSET_VERSION, "./team.js?v=" + ASSET_VERSION, "./app.js?v=" + ASSET_VERSION, "./organizer.js?v=" + ASSET_VERSION, "./features.js?v=" + ASSET_VERSION,
+  "./styles.css?v=" + ASSET_VERSION, "./admin.js?v=" + ASSET_VERSION, "./team.js?v=" + ASSET_VERSION, "./app.js?v=" + ASSET_VERSION, "./organizer.js?v=" + ASSET_VERSION, "./features.js?v=" + ASSET_VERSION, "./deadline-calc.js?v=" + ASSET_VERSION,
   "./manifest.webmanifest", "./icon.svg", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png"
 ];
 

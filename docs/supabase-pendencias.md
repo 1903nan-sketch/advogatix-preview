@@ -1,6 +1,15 @@
 # Pendências no Supabase
 
-Nada deste arquivo foi executado. São as alterações necessárias para completar funcionalidades que já estão prontas na interface do preview. Revise e aplique primeiro num banco de testes, nunca direto em produção.
+## Já aplicado (29/09/2026)
+
+- `fix_same_firm_references_in_policies`: as policies de insert/update de `deadlines`, `tasks`, `case_checklist_items` e `client_interactions` comparavam `c.firm_id = c.firm_id` (sempre verdadeiro). Agora usam `private.same_firm_refs(firm_id, case_id, client_id)`, e o responsável (`responsible_user_id` / `assigned_to`) precisa ser membro ativo do escritório (`private.is_active_member_user`). Verificado com teste desfeito por rollback: vínculo com processo de outro escritório e delegação a não membro são bloqueados.
+- `add_firm_holidays_and_deadline_calculation`: tabela `firm_holidays` (RLS por `firm_id`, exclusão só owner/lawyer, gatilhos de `updated_at` e auditoria) e coluna `deadlines.calculation jsonb`.
+
+**Observação sobre o histórico:** o banco já tem a tabela `audit_logs`, preenchida por gatilhos em todas as tabelas (leitura só para o proprietário). A proposta de `activity_logs` abaixo **não é mais necessária**: a tela Atividades deve passar a ler `audit_logs`.
+
+## Proposto e ainda não aplicado
+
+O restante deste arquivo não foi executado. São as alterações necessárias para completar funcionalidades que já estão prontas na interface do preview. Revise e aplique primeiro num banco de testes, nunca direto em produção.
 
 O preview continua com `PREVIEW_READ_ONLY = true` (em `app.js`), então nenhuma destas alterações é usada por ele enquanto o bloqueio estiver ativo.
 
