@@ -598,3 +598,26 @@ dialog.wide{width:min(980px,calc(100% - 28px))}
   body.print-doc .print-doc-body{white-space:pre-wrap;font:12pt/1.6 Georgia,"Times New Roman",serif;color:#000}
 }
 @page{margin:2cm}
+
+
+/* Painel mestre e equipe */
+.admin-main{display:grid;gap:16px}
+.admin-metrics{margin-bottom:4px}
+.admin-toolbar{margin-top:2px}
+.team-setting{grid-column:1/-1}
+.team-list{display:grid;gap:8px;margin-top:12px}
+.team-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 13px;border:1px solid var(--glass-edge);border-radius:14px;background:var(--glass-soft)}
+.team-person{display:grid;gap:3px;min-width:0}
+.team-person strong{font-weight:600}
+.team-person span{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.team-meta{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+#adminApp .topbar{margin-bottom:20px}
+#adminApp .table-card{margin-top:2px}
+@media(max-width:720px){
+  .team-row{align-items:flex-start;flex-direction:column}
+  .team-meta{justify-content:flex-start}
+  #adminApp .admin-metrics{grid-template-columns:1fr 1fr}
+}
+@media(max-width:460px){
+  #adminApp .admin-metrics{grid-template-columns:1fr}
+}
