@@ -73,6 +73,56 @@
     </div>
   </div>
 
+  <div id="adminApp" class="hidden">
+    <div class="wrap">
+      <header class="topbar">
+        <div class="brand"><div class="brand-mark"></div><span>AdvogaTix Master</span></div>
+        <div class="top-actions">
+          <span class="pill">Super Admin</span>
+          <a class="btn secondary" href="?mode=office#overview">Painel do escritório</a>
+          <button id="adminLogoutBtn" class="btn secondary" type="button">Sair</button>
+        </div>
+      </header>
+
+      <main class="admin-main">
+        <div class="page-head">
+          <div><h2>Painel Mestre</h2><p>Controle humano dos escritórios, acessos, venda e manutenção.</p></div>
+          <button id="adminNewFirmBtn" class="btn" type="button">Novo escritório</button>
+        </div>
+
+        <div class="metrics admin-metrics">
+          <div class="card metric"><span>Escritórios</span><b id="adminMetricFirms">0</b></div>
+          <div class="card metric"><span>Ativos</span><b id="adminMetricActive">0</b></div>
+          <div class="card metric"><span>Bloqueados</span><b id="adminMetricBlocked">0</b></div>
+          <div class="card metric"><span>Usuários</span><b id="adminMetricUsers">0</b></div>
+          <div class="card metric"><span>Manutenções pendentes</span><b id="adminMetricMaintenance">0</b></div>
+        </div>
+
+        <div class="toolbar admin-toolbar">
+          <div class="filters">
+            <div class="search"><input id="adminFirmSearch" type="search" placeholder="Buscar escritório ou proprietário" /></div>
+            <select id="adminFirmStatusFilter" aria-label="Filtrar escritório por acesso">
+              <option value="all">Todos</option>
+              <option value="active">Ativos</option>
+              <option value="blocked">Bloqueados</option>
+              <option value="ended">Encerrados</option>
+            </select>
+          </div>
+          <button id="adminRefreshBtn" class="btn secondary" type="button">Atualizar</button>
+        </div>
+
+        <div class="card table-card">
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Escritório</th><th>Proprietário</th><th>Usuários</th><th>Venda</th><th>Manutenção</th><th>Acesso</th><th></th></tr></thead>
+              <tbody id="adminFirmRows"><tr><td colspan="7" class="empty">Carregando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="adminStatus" class="status"></div>
+      </main>
+    </div>
+  </div>
   <div id="app" class="hidden">
     <div class="wrap">
       <header class="topbar">
@@ -84,35 +134,21 @@
           </div>
           <span id="roleLabel" class="pill">Equipe</span>
           <span id="userLabel" class="pill">Conectado</span>
+          <a id="masterAccessBtn" class="btn secondary hidden" href="?mode=admin">Painel mestre</a>
           <button id="logoutBtn" class="btn secondary" type="button">Sair</button>
         </div>
       </header>
 
       <section id="onboardingArea" class="card onboarding hidden">
-        <h2>Configure seu escritório</h2>
-        <p class="muted">Esta conta já está autorizada. Agora configure os dados do escritório para abrir o painel.</p>
+        <h2>Acesso ainda não vinculado</h2>
+        <p class="muted">Sua conta existe, mas ainda não foi vinculada a um escritório do AdvogaTix.</p>
+        <div class="notice">O cadastro de escritórios é feito manualmente pelo administrador da plataforma.</div>
+      </section>
 
-        <form id="firmForm">
-          <label for="firmInput">Nome do escritório</label>
-          <input id="firmInput" required placeholder="Ex.: Silva & Associados" />
-
-          <label for="slugInput">Identificador</label>
-          <input id="slugInput" required placeholder="silva-associados" />
-
-          <div class="modal-grid">
-            <div>
-              <label for="firmWhatsapp">WhatsApp do escritório</label>
-              <input id="firmWhatsapp" placeholder="5511999999999" />
-            </div>
-            <div>
-              <label for="firmEmail">E-mail</label>
-              <input id="firmEmail" type="email" placeholder="contato@escritorio.com.br" />
-            </div>
-          </div>
-
-          <button class="btn" style="margin-top:15px">Criar escritório</button>
-          <div id="firmStatus" class="status"></div>
-        </form>
+      <section id="blockedArea" class="card onboarding hidden">
+        <h2>Acesso do escritório bloqueado</h2>
+        <p id="blockedFirmText" class="muted">Este escritório está temporariamente sem acesso ao sistema.</p>
+        <div class="notice">O desbloqueio é manual pelo administrador do AdvogaTix. Nenhum dado foi apagado.</div>
       </section>
 
       <div id="lawyerArea" class="app-shell hidden">
@@ -762,9 +798,16 @@
               <div class="card setting-card">
                 <h3>Acesso e segurança</h3>
                 <p id="currentAccessSummary">Carregando o perfil atual...</p>
-                <div class="notice">
-                  Toda ação sensível deve registrar usuário, data e escritório. A gestão completa de membros e permissões depende de uma área administrativa protegida no backend.
+                <div class="notice">Cada pessoa usa seu próprio login. Senhas nunca ficam visíveis para o proprietário ou para o administrador da plataforma.</div>
+              </div>
+
+              <div id="teamSettingCard" class="card setting-card team-setting">
+                <div class="panel-head">
+                  <div><h3>Equipe do escritório</h3><p id="teamLimitText">Carregando usuários...</p></div>
+                  <button id="teamInviteBtn" class="btn" type="button">Adicionar membro</button>
                 </div>
+                <div id="teamList" class="team-list"></div>
+                <div id="teamStatus" class="status"></div>
               </div>
             </div>
           </section>
@@ -773,6 +816,50 @@
     </div>
   </div>
 
+  <dialog id="adminFirmDialog" class="wide">
+    <form id="adminFirmForm" class="modal">
+      <div class="modal-head">
+        <div><h3 id="adminFirmDialogTitle">Novo escritório</h3><p>Venda e manutenção são controladas manualmente.</p></div>
+        <button class="btn ghost close-x" type="button" data-admin-close>×</button>
+      </div>
+      <div class="modal-grid">
+        <div class="full"><label for="adminFirmName">Nome do escritório</label><input id="adminFirmName" required /></div>
+        <div id="adminOwnerNameWrap"><label for="adminOwnerName">Nome do proprietário</label><input id="adminOwnerName" /></div>
+        <div id="adminOwnerEmailWrap"><label for="adminOwnerEmail">E-mail para o login do proprietário</label><input id="adminOwnerEmail" type="email" /></div>
+        <div><label for="adminFirmEmail">E-mail de contato do escritório</label><input id="adminFirmEmail" type="email" /></div>
+        <div><label for="adminFirmPhone">Telefone</label><input id="adminFirmPhone" /></div>
+        <div><label for="adminUserLimit">Limite de usuários</label><input id="adminUserLimit" type="number" min="1" max="500" value="5" /></div>
+        <div><label for="adminAccessStatus">Acesso</label><select id="adminAccessStatus"><option value="active">Ativo</option><option value="blocked">Bloqueado</option><option value="ended">Encerrado</option></select></div>
+        <div><label for="adminSaleAmount">Valor da venda</label><input id="adminSaleAmount" type="number" min="0" step="0.01" /></div>
+        <div><label for="adminSoldAt">Data da venda</label><input id="adminSoldAt" type="date" /></div>
+        <div><label for="adminMaintenanceAmount">Taxa de manutenção</label><input id="adminMaintenanceAmount" type="number" min="0" step="0.01" /></div>
+        <div><label for="adminMaintenanceDue">Próxima manutenção</label><input id="adminMaintenanceDue" type="date" /></div>
+        <div><label for="adminMaintenanceStatus">Situação da manutenção</label><select id="adminMaintenanceStatus"><option value="none">Sem cobrança</option><option value="current">Em dia</option><option value="due">Pendente</option><option value="overdue">Atrasada</option><option value="waived">Dispensada</option></select></div>
+        <div class="full"><label for="adminNotes">Observações comerciais</label><textarea id="adminNotes" placeholder="Acordos, suporte, condições da venda..."></textarea></div>
+      </div>
+      <div id="adminPreviewNotice" class="notice hidden" style="margin-top:12px">No preview você pode consultar o painel, mas criação, bloqueio e alterações ficam desativados.</div>
+      <div class="modal-actions"><button class="btn secondary" type="button" data-admin-close>Cancelar</button><button id="adminFirmSaveBtn" class="btn">Salvar</button></div>
+      <div id="adminFirmFormStatus" class="status"></div>
+    </form>
+  </dialog>
+
+  <dialog id="teamDialog">
+    <form id="teamForm" class="modal">
+      <div class="modal-head">
+        <div><h3>Adicionar membro</h3><p>O usuário receberá um convite para criar a própria senha.</p></div>
+        <button class="btn ghost close-x" type="button" data-team-close>×</button>
+      </div>
+      <div class="modal-grid">
+        <div class="full"><label for="teamName">Nome</label><input id="teamName" required /></div>
+        <div class="full"><label for="teamEmail">E-mail</label><input id="teamEmail" type="email" required /></div>
+        <div><label for="teamRole">Função</label><select id="teamRole"><option value="lawyer">Advogado(a)</option><option value="staff">Equipe / Assistente</option></select></div>
+        <div><label for="teamOab">OAB</label><input id="teamOab" placeholder="Opcional" /></div>
+      </div>
+      <div id="teamPreviewNotice" class="notice hidden" style="margin-top:12px">No preview os convites estão desativados para não alterar as contas reais.</div>
+      <div class="modal-actions"><button class="btn secondary" type="button" data-team-close>Cancelar</button><button id="teamInviteSaveBtn" class="btn">Enviar convite</button></div>
+      <div id="teamFormStatus" class="status"></div>
+    </form>
+  </dialog>
   <dialog id="clientDialog">
     <form id="clientForm" class="modal">
       <div class="modal-head">
@@ -1415,8 +1502,10 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" integrity="sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU" crossorigin="anonymous"></script>
-  <script src="./app.js?v=8"></script>
-  <script src="./organizer.js?v=8"></script>
-  <script src="./features.js?v=8"></script>
+  <script src="./admin.js?v=9"></script>
+  <script src="./team.js?v=9"></script>
+  <script src="./app.js?v=9"></script>
+  <script src="./organizer.js?v=9"></script>
+  <script src="./features.js?v=9"></script>
 </body>
 </html>
