@@ -130,7 +130,8 @@
     $("#deadlinePriority").value = item?.priority || "normal";
     $("#deadlineStatus").value = item?.status || "pending";
     $("#deadlineType").value = item?.deadline_type || "processual";
-    $("#deadlineResponsible").value = responsibleFormLabel(item?.assigned_to || item?.created_by);
+    $("#deadlineResponsible").value = responsibleFormLabel(item?.responsible_user_id || item?.created_by);
+    window.AdvogaDeadlineCalc?.reset(item);
     if (item) {
       $("#deadlineTitle").value = item.title || "";
       $("#deadlineDue").value = toLocalInput(item.due_at);
@@ -156,8 +157,12 @@
       status,
       source: $("#deadlineSource").value.trim() || null,
       notes: $("#deadlineNotes").value.trim() || null,
-      completed_at: keepTimestamp(current, "completed_at", status === "completed")
+      completed_at: keepTimestamp(current, "completed_at", status === "completed"),
+      responsible_user_id: current ? (current.responsible_user_id ?? current.created_by ?? state.user.id) : state.user.id
     };
+    // Guarda como a data foi calculada, quando o vencimento veio da calculadora.
+    const calculation = window.AdvogaDeadlineCalc?.calculationFor($("#deadlineDue").value);
+    if (calculation) payload.calculation = calculation;
     try {
       if (state.editingDeadlineId) {
         const { error } = await supabase.from("deadlines").update(payload)
@@ -605,7 +610,7 @@
       const statusType = item.status === "completed" ? "ok" : bucket === "overdue" ? "err" : item.status === "in_progress" ? "warn" : "";
       return '<tr class="deadline-row bucket-' + bucket + '">' +
         '<td><div class="row-main"><strong>' + esc(item.title) + '</strong>' +
-          '<span class="small">Responsável: ' + esc(responsibleLabel(item.assigned_to || item.created_by)) + '</span>' +
+          '<span class="small">Responsável: ' + esc(responsibleLabel(item.responsible_user_id || item.created_by)) + '</span>' +
           '<span class="small">' + esc([item.source, item.deadline_type ? deadlineTypeLabels[item.deadline_type] || item.deadline_type : ""].filter(Boolean).join(" • ")) + '</span></div></td>' +
         '<td><strong class="nowrap-num">' + esc(proc?.process_number || proc?.title || "Sem processo") + '</strong><div class="small">' + esc(client?.full_name || "Sem cliente") + '</div></td>' +
         '<td class="' + dueClass(item.due_at, item.status) + '">' + (item.due_at ? brDate(item.due_at) : "—") + '</td>' +
@@ -1718,6 +1723,7 @@
     renderConflictSearch();
     renderReports();
     window.AdvogaFeatures?.renderAll?.();
+    window.AdvogaDeadlineCalc?.refresh?.();
     if (!$("#globalSearchResults")?.classList.contains("hidden")) renderGlobalSearch();
     if (state.activeClientFileId && $("#clientFileDialog")?.open) renderClientFile();
     if (state.activeCaseWorkspaceId && $("#caseWorkspaceDialog")?.open) renderCaseWorkspace();

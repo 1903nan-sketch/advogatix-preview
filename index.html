@@ -13,7 +13,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
-  <link rel="stylesheet" href="./styles.css?v=8" />
+  <link rel="stylesheet" href="./styles.css?v=10" />
 </head>
 <body>
   <div id="previewBanner" class="preview-banner hidden" role="status">
@@ -809,6 +809,21 @@
                 <div id="teamList" class="team-list"></div>
                 <div id="teamStatus" class="status"></div>
               </div>
+
+              <div class="card setting-card holidays-setting">
+                <h3>Feriados locais</h3>
+                <p>Usados pela calculadora de prazos junto com os feriados nacionais. Cadastre feriados municipais, estaduais e do tribunal.</p>
+                <form id="holidayForm" class="holiday-form">
+                  <div><label for="holidayDate">Data</label><input id="holidayDate" type="date" required /></div>
+                  <div><label for="holidayName">Nome</label><input id="holidayName" required maxlength="120" placeholder="Ex.: Aniversário da cidade" /></div>
+                  <div><label for="holidayScope">Tipo</label><select id="holidayScope"><option value="municipal">Municipal</option><option value="estadual">Estadual</option><option value="forense">Forense</option><option value="outro">Outro</option></select></div>
+                  <label class="check"><input type="checkbox" id="holidayRecurring" checked /> Repete todo ano</label>
+                  <button id="holidaySaveBtn" class="btn sm">Adicionar feriado</button>
+                </form>
+                <div id="holidayStatus" class="status"></div>
+                <div id="holidayList" class="holiday-list"></div>
+                <details class="holiday-national-box"><summary>Ver feriados nacionais considerados</summary><div id="holidayNational"></div></details>
+              </div>
             </div>
           </section>
         </main>
@@ -1246,10 +1261,31 @@
         <div><label for="deadlineCase">Processo</label><select id="deadlineCase"></select></div>
         <div><label for="deadlineClient">Cliente</label><select id="deadlineClient"></select></div>
         <div><label for="deadlineType">Tipo</label><select id="deadlineType"><option value="processual">Processual</option><option value="appeal">Recurso</option><option value="administrative">Administrativo</option><option value="internal">Interno</option><option value="hearing">Audiência</option><option value="other">Outro</option></select></div>
+        <div class="full calc-box">
+          <div id="calcSaved" class="field-help hidden"></div>
+          <details id="calcDetails">
+            <summary>Calculadora de prazo <span class="small">(auxiliar)</span></summary>
+            <div class="calc-warning" role="note">Cálculo auxiliar. Confira sempre o calendário do tribunal, os feriados locais e a legislação aplicável antes de registrar o prazo. A conferência final é do advogado.</div>
+            <div class="calc-grid">
+              <div><label for="calcStart">Data da intimação / publicação</label><input id="calcStart" type="date" /></div>
+              <div><label for="calcDays">Prazo (dias)</label><input id="calcDays" type="number" min="1" max="3650" step="1" inputmode="numeric" placeholder="Ex.: 15" /></div>
+              <div><label for="calcMode">Contagem</label><select id="calcMode"><option value="uteis">Dias úteis (art. 219 do CPC)</option><option value="corridos">Dias corridos</option></select></div>
+            </div>
+            <div class="calc-options">
+              <label class="check"><input type="checkbox" id="calcDje" /> A data informada é a <strong>disponibilização no DJe</strong> (publicação no 1º dia útil seguinte)</label>
+              <label class="check"><input type="checkbox" id="calcRecess" checked /> Suspender no recesso de 20/12 a 20/01 (art. 220 do CPC)</label>
+              <label class="check"><input type="checkbox" id="calcForense" /> Incluir feriados forenses usuais (Carnaval, Quarta e Quinta-feira Santa, Corpus Christi, 11/08, 01/11 e 08/12). Confira se o tribunal adota.</label>
+            </div>
+            <p class="field-help">Feriados nacionais entram automaticamente. Os feriados locais do escritório são cadastrados em Configurações.</p>
+            <div class="calc-actions"><button type="button" id="calcRunBtn" class="btn secondary sm">Calcular vencimento</button></div>
+            <div id="calcStatus" class="status"></div>
+            <div id="calcResult" class="calc-result hidden" aria-live="polite"></div>
+          </details>
+        </div>
         <div><label for="deadlineDue">Vencimento</label><input id="deadlineDue" type="datetime-local" required /></div>
         <div><label for="deadlinePriority">Prioridade</label><select id="deadlinePriority"><option value="low">Baixa</option><option value="normal" selected>Normal</option><option value="high">Alta</option><option value="urgent">Urgente</option></select></div>
         <div><label for="deadlineStatus">Status</label><select id="deadlineStatus"><option value="pending">Pendente</option><option value="in_progress">Em andamento</option><option value="completed">Concluído</option><option value="cancelled">Cancelado</option></select></div>
-        <div class="full"><label for="deadlineResponsible">Responsável pelo controle</label><input id="deadlineResponsible" readonly aria-describedby="deadlineResponsibleHelp" /><div id="deadlineResponsibleHelp" class="field-help">No cadastro atual, o controle fica vinculado ao usuário que criou o prazo.</div></div>
+        <div class="full"><label for="deadlineResponsible">Responsável pelo controle</label><input id="deadlineResponsible" readonly aria-describedby="deadlineResponsibleHelp" /><div id="deadlineResponsibleHelp" class="field-help">O controle fica com o usuário que cadastrou o prazo. A delegação chega com o Kanban.</div></div>
         <div class="full"><label for="deadlineSource">Origem</label><input id="deadlineSource" placeholder="Ex.: DJEN, intimação, cliente, controle interno" /></div>
         <div class="full"><label for="deadlineNotes">Observações</label><textarea id="deadlineNotes" placeholder="Detalhes importantes do prazo"></textarea></div>
       </div>
@@ -1502,10 +1538,11 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" integrity="sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU" crossorigin="anonymous"></script>
-  <script src="./admin.js?v=9"></script>
-  <script src="./team.js?v=9"></script>
-  <script src="./app.js?v=9"></script>
-  <script src="./organizer.js?v=9"></script>
-  <script src="./features.js?v=9"></script>
+  <script src="./admin.js?v=10"></script>
+  <script src="./team.js?v=10"></script>
+  <script src="./app.js?v=10"></script>
+  <script src="./organizer.js?v=10"></script>
+  <script src="./features.js?v=10"></script>
+  <script src="./deadline-calc.js?v=10"></script>
 </body>
 </html>

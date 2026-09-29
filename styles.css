@@ -54,7 +54,7 @@ button{cursor:pointer}
 button:disabled{cursor:not-allowed;opacity:.5}
 .preview-mode [data-retry-update],.preview-mode [data-complete-deadline],.preview-mode [data-complete-task],
 .preview-mode [data-convert-lead],.preview-mode [data-delete-document],.preview-mode [data-toggle-checklist],
-.preview-mode [data-delete-template]{cursor:not-allowed;opacity:.5}
+.preview-mode [data-delete-template],.preview-mode [data-holiday-delete]{cursor:not-allowed;opacity:.5}
 a{color:inherit}
 ::selection{background:rgba(31,35,41,.14)}
 :focus-visible{outline:2px solid rgba(31,35,41,.35);outline-offset:2px}
@@ -571,6 +571,59 @@ dialog.wide{width:min(980px,calc(100% - 28px))}
   .panel-head h3{white-space:nowrap}
   #deadlinesBody .row-actions{flex-direction:row}
   dialog.wide{width:calc(100% - 16px)}
+}
+
+/* ---------- Calculadora de prazos ---------- */
+.calc-box{margin-top:12px}
+.calc-box details{border:1px solid var(--glass-edge);border-radius:14px;background:var(--glass-soft);padding:0 14px}
+.calc-box summary{cursor:pointer;padding:12px 0;font-weight:600;list-style:none;display:flex;align-items:center;gap:8px}
+.calc-box summary::-webkit-details-marker{display:none}
+.calc-box summary::before{content:"▸";color:var(--muted);transition:transform .15s ease}
+.calc-box details[open] summary::before{transform:rotate(90deg)}
+.calc-box details[open]{padding-bottom:14px}
+.calc-warning{
+  padding:10px 12px;border-radius:12px;border:1px solid #f0dfbd;background:#fbf3e3;color:#7a4e0c;font-size:13px;margin-bottom:6px
+}
+.calc-grid{display:grid;grid-template-columns:1.2fr .7fr 1.2fr;gap:0 10px}
+.calc-options{display:grid;gap:6px;margin-top:10px}
+label.check{display:flex;align-items:flex-start;gap:8px;margin:0;font-size:13px;color:var(--text);cursor:pointer;line-height:1.4}
+label.check input{width:auto;margin:2px 0 0;flex:0 0 auto;accent-color:var(--accent)}
+.calc-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.calc-result{margin-top:12px;padding:14px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.75)}
+.calc-end{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 12px;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:10px}
+.calc-end span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.calc-end strong{font-size:20px;letter-spacing:-.02em}
+.calc-steps{display:grid;grid-template-columns:minmax(140px,30%) minmax(0,1fr);gap:6px 12px;margin:0;font-size:13px}
+.calc-steps dt{color:var(--muted)}
+.calc-steps dd{margin:0}
+.calc-note{margin:8px 0 0;color:#3b4048}
+.calc-holidays{margin-top:10px;font-size:13px}
+.calc-holidays ul,.holiday-national-box ul{margin:6px 0 0;padding-left:18px}
+.calc-daylist{margin-top:10px;font-size:13px}
+.calc-daylist summary{cursor:pointer;color:var(--muted);font-weight:500}
+.calc-daylist ol{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:3px;max-height:260px;overflow:auto}
+.calc-daylist li{display:flex;gap:8px;align-items:baseline;padding:3px 6px;border-radius:8px}
+.calc-daylist li.is-skip{background:rgba(20,24,31,.04);color:var(--muted)}
+.calc-n{flex:0 0 26px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;color:var(--muted)}
+
+/* Feriados locais (Configurações) */
+.holiday-form{display:grid;grid-template-columns:150px minmax(0,1fr) 140px;gap:0 10px;align-items:end}
+.holiday-form label.check{grid-column:1/3;margin-top:10px}
+.holiday-form .btn{margin-top:10px;justify-self:end;grid-column:3}
+.holiday-list{display:grid;gap:6px;margin-top:10px}
+.holiday-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--glass-edge);border-radius:12px;background:var(--glass-soft)}
+.holiday-row strong{display:block;font-weight:600}
+.holiday-row .small{display:block}
+.holiday-national-box{margin-top:12px;font-size:13px}
+.holiday-national-box summary{cursor:pointer;color:var(--muted)}
+
+@media(max-width:620px){
+  .calc-grid{grid-template-columns:1fr}
+  .calc-steps{grid-template-columns:1fr;gap:1px}
+  .calc-steps dd{margin-bottom:6px}
+  .calc-actions .btn{flex:1}
+  .holiday-form{grid-template-columns:1fr}
+  .holiday-form label.check,.holiday-form .btn{grid-column:auto;justify-self:stretch}
 }
 
 /* Navegadores sem vidro fosco: painéis ficam mais opacos para manter a leitura. */

@@ -232,7 +232,7 @@
       const countdown = h.deadlineCountdown(d);
       add({ cat: "deadline", date: toDate(d.due_at || d.created_at), title: d.title,
         desc: [h.deadlineTypeLabels[d.deadline_type], d.source, "Prioridade " + (h.priorityLabels[d.priority] || "Normal").toLowerCase(), countdown.text].filter(Boolean).join(" • "),
-        who: d.assigned_to || d.created_by, status: [h.deadlineStatusLabels[d.status] || d.status, d.status === "completed" ? "ok" : countdown.tone],
+        who: d.responsible_user_id || d.created_by, status: [h.deadlineStatusLabels[d.status] || d.status, d.status === "completed" ? "ok" : countdown.tone],
         open: "deadline|" + d.id });
     });
 
@@ -629,7 +629,7 @@
     state.updates.forEach((u) => add("movement.created", "movement", u.created_at || u.event_date, "Movimentação registrada: " + (u.title || ""), u.created_by, "movement|" + u.id));
     state.deadlines.forEach((d) => {
       add("deadline.created", "deadline", d.created_at, "Prazo criado: " + d.title, d.created_by, "deadline|" + d.id);
-      if (d.completed_at) add("deadline.completed", "deadline", d.completed_at, "Prazo concluído: " + d.title, d.assigned_to || d.created_by, "deadline|" + d.id);
+      if (d.completed_at) add("deadline.completed", "deadline", d.completed_at, "Prazo concluído: " + d.title, d.responsible_user_id || d.created_by, "deadline|" + d.id);
     });
     state.tasks.forEach((t) => {
       add("task.created", "task", t.created_at, "Tarefa criada: " + t.title, t.created_by, "task|" + t.id);
