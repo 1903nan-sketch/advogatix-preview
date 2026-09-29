@@ -13,7 +13,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
-  <link rel="stylesheet" href="./styles.css?v=5" />
+  <link rel="stylesheet" href="./styles.css?v=6" />
 </head>
 <body>
   <div id="previewBanner" class="preview-banner hidden" role="status">
@@ -229,7 +229,7 @@
                 <div class="search">
                   <input id="clientSearch" type="search" placeholder="Buscar cliente, telefone ou indicação" />
                 </div>
-                <select id="clientFilter">
+                <select id="clientFilter" aria-label="Filtrar clientes por status">
                   <option value="all">Todos os status</option>
                   <option value="active">Ativos</option>
                   <option value="inactive">Inativos</option>
@@ -271,7 +271,7 @@
                 <div class="search">
                   <input id="caseSearch" type="search" placeholder="Buscar processo, cliente, reclamante ou fórum" />
                 </div>
-                <select id="caseFilter">
+                <select id="caseFilter" aria-label="Filtrar processos por status">
                   <option value="all">Todos os status</option>
                   <option value="new">Novo</option>
                   <option value="in_progress">Em andamento</option>
@@ -309,14 +309,14 @@
             <div class="page-head">
               <div>
                 <h2>Prazos</h2>
-                <p>Controle prazos processuais e internos com prioridade e responsável.</p>
+                <p>Controle prazos processuais e internos com prioridade, origem e responsável identificado.</p>
               </div>
               <button id="newDeadlineBtn" class="btn" type="button">Novo prazo</button>
             </div>
             <div class="toolbar">
               <div class="filters">
                 <div class="search"><input id="deadlineSearch" type="search" placeholder="Buscar prazo, cliente ou processo" /></div>
-                <select id="deadlineFilter">
+                <select id="deadlineFilter" aria-label="Filtrar prazos">
                   <option value="open">Abertos</option>
                   <option value="overdue">Vencidos</option>
                   <option value="today">Vencem hoje</option>
@@ -329,7 +329,7 @@
             <div class="card table-card">
               <div class="tablewrap">
                 <table>
-                  <thead><tr><th>Prazo</th><th>Cliente / Processo</th><th>Vencimento</th><th>Prioridade</th><th>Status</th><th></th></tr></thead>
+                  <thead><tr><th>Prazo</th><th>Cliente / Processo</th><th>Responsável</th><th>Vencimento</th><th>Prioridade</th><th>Status</th><th></th></tr></thead>
                   <tbody id="deadlinesBody"></tbody>
                 </table>
               </div>
@@ -346,7 +346,7 @@
             </div>
             <div class="toolbar">
               <div class="filters">
-                <select id="agendaFilter">
+                <select id="agendaFilter" aria-label="Filtrar compromissos">
                   <option value="upcoming">Próximos</option>
                   <option value="today">Hoje</option>
                   <option value="all">Todos</option>
@@ -370,7 +370,7 @@
             <div class="toolbar">
               <div class="filters">
                 <div class="search"><input id="taskSearch" type="search" placeholder="Buscar tarefa, cliente ou processo" /></div>
-                <select id="taskFilter">
+                <select id="taskFilter" aria-label="Filtrar tarefas">
                   <option value="open">Abertas</option>
                   <option value="overdue">Atrasadas</option>
                   <option value="all">Todas</option>
@@ -382,7 +382,7 @@
             <div class="card table-card">
               <div class="tablewrap">
                 <table>
-                  <thead><tr><th>Tarefa</th><th>Cliente / Processo</th><th>Vencimento</th><th>Prioridade</th><th>Status</th><th></th></tr></thead>
+                  <thead><tr><th>Tarefa</th><th>Cliente / Processo</th><th>Responsável</th><th>Vencimento</th><th>Prioridade</th><th>Status</th><th></th></tr></thead>
                   <tbody id="tasksBody"></tbody>
                 </table>
               </div>
@@ -407,7 +407,7 @@
             <div class="toolbar">
               <div class="filters">
                 <div class="search"><input id="financeSearch" type="search" placeholder="Buscar lançamento ou cliente" /></div>
-                <select id="financeFilter">
+                <select id="financeFilter" aria-label="Filtrar lançamentos financeiros">
                   <option value="all">Todos</option>
                   <option value="pending">Pendentes</option>
                   <option value="paid">Pagos</option>
@@ -439,7 +439,7 @@
             <div class="toolbar">
               <div class="filters">
                 <div class="search"><input id="documentSearch" type="search" placeholder="Buscar documento, cliente ou processo" /></div>
-                <select id="documentTypeFilter">
+                <select id="documentTypeFilter" aria-label="Filtrar documentos por tipo">
                   <option value="all">Todos os tipos</option>
                   <option value="procuração">Procuração</option>
                   <option value="contrato">Contrato</option>
@@ -476,7 +476,7 @@
             <div class="toolbar">
               <div class="filters">
                 <div class="search"><input id="templateSearch" type="search" placeholder="Buscar modelo ou categoria" /></div>
-                <select id="templateFilter">
+                <select id="templateFilter" aria-label="Filtrar modelos por tipo">
                   <option value="all">Todos</option>
                   <option value="whatsapp">WhatsApp</option>
                   <option value="email">E-mail</option>
@@ -507,7 +507,7 @@
             <div class="toolbar">
               <div class="filters">
                 <div class="search"><input id="leadSearch" type="search" placeholder="Buscar nome, telefone ou origem" /></div>
-                <select id="leadFilter">
+                <select id="leadFilter" aria-label="Filtrar interessados por estágio">
                   <option value="all">Todos os estágios</option>
                   <option value="lead">Interessado</option>
                   <option value="consultation">Consulta</option>
@@ -579,7 +579,7 @@
                 <div class="search">
                   <input id="movementSearch" type="search" placeholder="Buscar movimentação ou processo" />
                 </div>
-                <select id="movementFilter">
+                <select id="movementFilter" aria-label="Filtrar movimentações por tipo">
                   <option value="all">Todos os tipos</option>
                   <option value="hearing">Audiência</option>
                   <option value="sentence">Sentença</option>
@@ -628,7 +628,7 @@
             <div class="page-head">
               <div>
                 <h2>Configurações</h2>
-                <p>Integrações do escritório.</p>
+                <p>Integrações e informações de acesso do escritório.</p>
               </div>
             </div>
 
@@ -665,6 +665,14 @@
                 <div class="notice">
                   O fluxo é: <strong>Nova movimentação → Revisar mensagem → Confirmar envio</strong>.
                   O histórico guarda horário, telefone, status e ID retornado pela API.
+                </div>
+              </div>
+
+              <div class="card setting-card">
+                <h3>Acesso e segurança</h3>
+                <p id="currentAccessSummary">Carregando o perfil atual...</p>
+                <div class="notice">
+                  Toda ação sensível deve registrar usuário, data e escritório. A gestão completa de membros e permissões depende de uma área administrativa protegida no backend.
                 </div>
               </div>
             </div>
@@ -1050,6 +1058,7 @@
         <div><label for="deadlineDue">Vencimento</label><input id="deadlineDue" type="datetime-local" required /></div>
         <div><label for="deadlinePriority">Prioridade</label><select id="deadlinePriority"><option value="normal">Normal</option><option value="high">Alta</option><option value="urgent">Urgente</option><option value="low">Baixa</option></select></div>
         <div><label for="deadlineStatus">Status</label><select id="deadlineStatus"><option value="pending">Pendente</option><option value="in_progress">Em andamento</option><option value="completed">Concluído</option><option value="cancelled">Cancelado</option></select></div>
+        <div class="full"><label for="deadlineResponsible">Responsável pelo controle</label><input id="deadlineResponsible" readonly aria-describedby="deadlineResponsibleHelp" /><div id="deadlineResponsibleHelp" class="field-help">No cadastro atual, o controle fica vinculado ao usuário que criou o prazo.</div></div>
         <div class="full"><label for="deadlineSource">Origem</label><input id="deadlineSource" placeholder="Ex.: DJEN, intimação, cliente, controle interno" /></div>
         <div class="full"><label for="deadlineNotes">Observações</label><textarea id="deadlineNotes" placeholder="Detalhes importantes do prazo"></textarea></div>
       </div>
@@ -1071,6 +1080,7 @@
         <div><label for="taskDue">Vencimento</label><input id="taskDue" type="datetime-local" /></div>
         <div><label for="taskPriority">Prioridade</label><select id="taskPriority"><option value="normal">Normal</option><option value="high">Alta</option><option value="urgent">Urgente</option><option value="low">Baixa</option></select></div>
         <div><label for="taskStatus">Status</label><select id="taskStatus"><option value="todo">A fazer</option><option value="in_progress">Em andamento</option><option value="waiting">Aguardando</option><option value="completed">Concluída</option><option value="cancelled">Cancelada</option></select></div>
+        <div class="full"><label for="taskResponsible">Responsável</label><input id="taskResponsible" readonly aria-describedby="taskResponsibleHelp" /><div id="taskResponsibleHelp" class="field-help">A tarefa é atribuída automaticamente ao usuário atual.</div></div>
         <div class="full"><label for="taskDescription">Descrição</label><textarea id="taskDescription" placeholder="Detalhes da atividade"></textarea></div>
       </div>
       <div class="modal-actions"><button class="btn secondary" type="button" data-close>Cancelar</button><button id="taskSaveBtn" class="btn">Salvar tarefa</button></div>
@@ -1093,6 +1103,7 @@
         <div><label for="eventClient">Cliente</label><select id="eventClient"></select></div>
         <div><label for="eventModality">Modalidade</label><select id="eventModality"><option value="">Não informada</option><option value="presential">Presencial</option><option value="remote">Telepresencial</option><option value="hybrid">Híbrida</option></select></div>
         <div><label for="eventLocation">Local / link</label><input id="eventLocation" placeholder="Fórum, endereço ou link da sala" /></div>
+        <div class="full"><label for="eventResponsible">Responsável</label><input id="eventResponsible" readonly aria-describedby="eventResponsibleHelp" /><div id="eventResponsibleHelp" class="field-help">O compromisso é atribuído automaticamente ao usuário atual.</div></div>
         <div class="full"><label for="eventNotes">Observações</label><textarea id="eventNotes"></textarea></div>
       </div>
       <div class="modal-actions"><button class="btn secondary" type="button" data-close>Cancelar</button><button id="eventSaveBtn" class="btn">Salvar compromisso</button></div>
@@ -1256,8 +1267,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" integrity="sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU" crossorigin="anonymous"></script>
-  <script src="./app.js?v=5"></script>
-  <script src="./organizer.js?v=5"></script>
+  <script src="./app.js?v=6"></script>
+  <script src="./organizer.js?v=6"></script>
 </body>
-</html>
 </html>

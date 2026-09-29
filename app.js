@@ -334,14 +334,28 @@
     }
   });
 
-  function switchSection(section) {
+  const validSections = new Set(["overview","clients","cases","deadlines","agenda","tasks","finance","documents","templates","crm","reports","movements","messages","settings"]);
+
+  function switchSection(section, options = {}) {
+    if (!validSections.has(section)) section = "overview";
     $$(".nav button").forEach((btn) => btn.classList.toggle("active", btn.dataset.section === section));
     $$(".section").forEach((el) => el.classList.toggle("show", el.id === `section-${section}`));
+    const activeButton = $(`.nav button[data-section="${section}"]`);
+    activeButton?.scrollIntoView({ block: "nearest", inline: "center", behavior: options.instant ? "auto" : "smooth" });
+    window.scrollTo({ top: 0, behavior: options.instant ? "auto" : "smooth" });
+    if (options.updateHash !== false && location.hash !== `#${section}`) {
+      history.pushState({ section }, "", `#${section}`);
+    }
     if (section === "settings") loadWhatsappStatus();
   }
 
   $$(".nav button").forEach((btn) => {
     btn.addEventListener("click", () => switchSection(btn.dataset.section));
+  });
+
+  window.addEventListener("popstate", () => {
+    const section = location.hash.replace(/^#/, "");
+    switchSection(validSections.has(section) ? section : "overview", { updateHash: false, instant: true });
   });
 
   $$("[data-close]").forEach((btn) => {
@@ -1219,8 +1233,13 @@
     const membership = memberships[0];
     state.firm = membership.law_firms;
     state.role = membership.role;
+    const roleLabel = { owner: "Proprietário", lawyer: "Advogado", assistant: "Assistente" }[state.role] || state.role || "Perfil não informado";
+    const accessSummary = $("#currentAccessSummary");
+    if (accessSummary) accessSummary.textContent = `${user.email || "Usuário conectado"} • ${roleLabel} • ${state.firm?.name || "Escritório"}`;
     $("#lawyerArea").classList.remove("hidden");
     await loadData();
+    const requestedSection = location.hash.replace(/^#/, "");
+    switchSection(validSections.has(requestedSection) ? requestedSection : "overview", { updateHash: false, instant: true });
     loadWhatsappStatus();
   }
 
@@ -1277,6 +1296,25 @@
   if (PREVIEW_READ_ONLY) {
     document.body.classList.add("preview-mode");
     $("#previewBanner")?.classList.remove("hidden");
+    const writeButtonIds = [
+      "clientSaveBtn","caseSaveBtn","movementSaveBtn","confirmSendBtn","deadlineSaveBtn",
+      "taskSaveBtn","eventSaveBtn","financeSaveBtn","documentUploadBtn","templateSaveBtn",
+      "leadSaveBtn","interactionSaveBtn","checklistSaveBtn"
+    ];
+    writeButtonIds.forEach((id) => {
+      const button = $("#" + id);
+      if (!button) return;
+      button.disabled = true;
+      button.title = PREVIEW_MESSAGE;
+    });
+    $("#documentFile")?.setAttribute("disabled", "");
+    document.addEventListener("click", (event) => {
+      const mutation = event.target.closest?.("[data-retry-update],[data-complete-deadline],[data-complete-task],[data-convert-lead],[data-delete-document],[data-toggle-checklist]");
+      if (!mutation) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      toast(PREVIEW_MESSAGE, "err");
+    }, true);
   }
 
   boot().catch((error) => {

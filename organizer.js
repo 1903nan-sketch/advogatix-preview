@@ -61,6 +61,16 @@
     return "";
   }
 
+  function responsibleLabel(userId) {
+    if (!userId) return "Não informado";
+    return userId === state.user?.id ? "Você" : "Outro membro";
+  }
+
+  function responsibleFormLabel(userId) {
+    const who = responsibleLabel(userId || state.user?.id);
+    return who === "Você" ? `${state.user?.email || "Você"} (usuário atual)` : who;
+  }
+
   function clientOptions(selected, allowEmpty = true) {
     const empty = allowEmpty ? '<option value="">Sem cliente</option>' : "";
     return empty + state.clients
@@ -119,6 +129,7 @@
     $("#deadlinePriority").value = item?.priority || "normal";
     $("#deadlineStatus").value = item?.status || "pending";
     $("#deadlineType").value = item?.deadline_type || "processual";
+    $("#deadlineResponsible").value = responsibleFormLabel(item?.assigned_to || item?.created_by);
     if (item) {
       $("#deadlineTitle").value = item.title || "";
       $("#deadlineDue").value = toLocalInput(item.due_at);
@@ -197,6 +208,7 @@
     $("#taskSaveBtn").textContent = item ? "Salvar alterações" : "Salvar tarefa";
     $("#taskPriority").value = item?.priority || "normal";
     $("#taskStatus").value = item?.status || "todo";
+    $("#taskResponsible").value = responsibleFormLabel(item?.assigned_to);
     if (item) {
       $("#taskTitle").value = item.title || "";
       $("#taskDue").value = toLocalInput(item.due_at);
@@ -272,6 +284,7 @@
     $("#eventDialogTitle").textContent = item ? "Editar compromisso" : "Novo compromisso";
     $("#eventSaveBtn").textContent = item ? "Salvar alterações" : "Salvar compromisso";
     $("#eventType").value = item?.event_type || "meeting";
+    $("#eventResponsible").value = responsibleFormLabel(item?.responsible_user_id);
     if (item) {
       $("#eventTitle").value = item.title || "";
       $("#eventStart").value = toLocalInput(item.start_at);
@@ -493,6 +506,7 @@
       return '<tr>' +
         '<td><div class="row-main"><strong>' + esc(item.title) + '</strong><span class="small">' + esc(item.source || "") + '</span></div></td>' +
         '<td><strong>' + esc(client?.full_name || "—") + '</strong><div class="small">' + esc(proc?.process_number || proc?.title || "") + '</div></td>' +
+        '<td>' + esc(responsibleLabel(item.assigned_to || item.created_by)) + '</td>' +
         '<td class="' + dueClass(item.due_at, item.status) + '">' + brDate(item.due_at) + '</td>' +
         '<td>' + badge(priorityLabels[item.priority] || item.priority, priorityTypes[item.priority] || "") + '</td>' +
         '<td>' + badge(deadlineStatusLabels[item.status] || item.status, statusType) + '</td>' +
@@ -500,7 +514,7 @@
           (!["completed","cancelled"].includes(item.status) ? '<button class="btn ghost sm" data-complete-deadline="' + esc(item.id) + '">Concluir</button>' : "") +
           '<button class="btn secondary sm" data-edit-deadline="' + esc(item.id) + '">Editar</button>' +
         '</div></td></tr>';
-    }).join("") : '<tr><td colspan="6" class="empty">Nenhum prazo encontrado.</td></tr>';
+    }).join("") : '<tr><td colspan="7" class="empty">Nenhum prazo encontrado.</td></tr>';
 
   }
 
@@ -526,6 +540,7 @@
       return '<tr>' +
         '<td><div class="row-main"><strong>' + esc(item.title) + '</strong><span class="small">' + esc(item.description || "") + '</span></div></td>' +
         '<td><strong>' + esc(client?.full_name || "—") + '</strong><div class="small">' + esc(proc?.process_number || proc?.title || "") + '</div></td>' +
+        '<td>' + esc(responsibleLabel(item.assigned_to)) + '</td>' +
         '<td class="' + dueClass(item.due_at, item.status) + '">' + (item.due_at ? brDate(item.due_at) : "—") + '</td>' +
         '<td>' + badge(priorityLabels[item.priority] || item.priority, priorityTypes[item.priority] || "") + '</td>' +
         '<td>' + badge(taskStatusLabels[item.status] || item.status, statusType) + '</td>' +
@@ -533,7 +548,7 @@
           (!["completed","cancelled"].includes(item.status) ? '<button class="btn ghost sm" data-complete-task="' + esc(item.id) + '">Concluir</button>' : "") +
           '<button class="btn secondary sm" data-edit-task="' + esc(item.id) + '">Editar</button>' +
         '</div></td></tr>';
-    }).join("") : '<tr><td colspan="6" class="empty">Nenhuma tarefa encontrada.</td></tr>';
+    }).join("") : '<tr><td colspan="7" class="empty">Nenhuma tarefa encontrada.</td></tr>';
 
   }
 
@@ -551,7 +566,7 @@
       const client = clientById(item.client_id);
       const proc = caseById(item.case_id);
       const cls = isToday(item.start_at) ? "event today" : "event";
-      const detail = [client?.full_name, proc?.process_number || proc?.title, item.location].filter(Boolean).join(" • ");
+      const detail = [client?.full_name, proc?.process_number || proc?.title, item.location, "Responsável: " + responsibleLabel(item.responsible_user_id)].filter(Boolean).join(" • ");
       return '<div class="' + cls + '">' +
         '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">' +
           '<div><strong>' + esc(item.title) + '</strong><small>' + esc(eventTypeLabels[item.event_type] || item.event_type) + ' • ' + brDate(item.start_at) + '</small></div>' +
@@ -670,7 +685,12 @@
       items.push('<div class="event today"><strong>' + esc(eventTypeLabels[x.event_type] || "Compromisso") + ': ' + esc(x.title) + '</strong><small>' + brDate(x.start_at) + '</small></div>');
     });
 
-    $("#todayList").innerHTML = items.length ? items.join("") : '<div class="event ok"><strong>Agenda operacional em dia</strong><small>Nenhum prazo ou tarefa pendente para hoje e nenhum compromisso agendado.</small></div>';
+    const hasOperationalControls = state.deadlines.length || state.tasks.length || state.calendarEvents.length;
+    $("#todayList").innerHTML = items.length
+      ? items.join("")
+      : hasOperationalControls
+        ? '<div class="event"><strong>Nenhuma pendência para hoje</strong><small>Não há vencimentos ou compromissos hoje. Confira também os próximos dias.</small></div>'
+        : '<div class="event attention"><strong>Controle operacional não verificado</strong><small>Nenhum prazo, tarefa ou compromisso foi cadastrado. Cadastre os controles antes de considerar o dia em ordem.</small></div>';
   }
 
 
@@ -854,13 +874,16 @@
     if (!confirm("Excluir este documento do AdvogaTix?")) return;
     setBusy(button, true, "Excluindo");
     try {
-      // Remove primeiro o registro: se falhar, o arquivo continua acessível pelo painel.
+      // O arquivo sensível é removido primeiro. Assim nunca fica órfão e invisível
+      // no armazenamento caso a remoção do registro falhe na etapa seguinte.
+      const { error: storageError } = await supabase.storage.from("case-documents").remove([doc.storage_path]);
+      if (storageError) throw storageError;
       const { error: dbError } = await supabase.from("documents").delete()
         .eq("id", doc.id).eq("firm_id", state.firm.id);
-      if (dbError) throw dbError;
-      const { error: storageError } = await supabase.storage.from("case-documents").remove([doc.storage_path]);
-      if (storageError) toast("Registro excluído, mas o arquivo não pôde ser removido do armazenamento.", "err");
-      else toast("Documento excluído.");
+      if (dbError) {
+        throw new Error("Arquivo removido, mas o registro não pôde ser excluído. Recarregue a lista e procure o suporte técnico.");
+      }
+      toast("Documento excluído.");
       await core.loadData();
     } catch (error) {
       toast(error.message || "Não foi possível excluir o documento.", "err");
@@ -903,7 +926,9 @@
   function processHealth(item) {
     const deadlines = state.deadlines.filter((x) => x.case_id === item.id && !["completed","cancelled"].includes(x.status));
     const tasks = state.tasks.filter((x) => x.case_id === item.id && !["completed","cancelled"].includes(x.status));
-    const checklist = state.checklistItems.filter((x) => x.case_id === item.id && x.is_required && !x.is_done);
+    const allChecklist = state.checklistItems.filter((x) => x.case_id === item.id);
+    const checklist = allChecklist.filter((x) => x.is_required && !x.is_done);
+    const hasTrackedControls = state.deadlines.some((x) => x.case_id === item.id) || state.tasks.some((x) => x.case_id === item.id) || allChecklist.length > 0;
     const overdueDeadlines = deadlines.filter((x) => isOverdue(x.due_at, x.status));
     const overdueTasks = tasks.filter((x) => isOverdue(x.due_at, x.status));
 
@@ -919,7 +944,10 @@
     if (deadlines.length || tasks.length) {
       return { label: "Em andamento", type: "", detail: "Pendências controladas" };
     }
-    return { label: "Em dia", type: "ok", detail: "Nenhuma pendência operacional" };
+    if (hasTrackedControls) {
+      return { label: "Em dia", type: "ok", detail: "Controles cadastrados sem pendências abertas" };
+    }
+    return { label: "Não verificado", type: "warn", detail: "Nenhum prazo, tarefa ou checklist foi cadastrado" };
   }
 
   function renderCaseHealthBadges() {
@@ -1181,7 +1209,7 @@
 
     const attention = state.cases.map((item) => ({ item, health: processHealth(item) }))
       .filter((x) => !["Em dia"].includes(x.health.label))
-      .sort((a,b) => ({ Urgente:0, Atenção:1, Pendência:2, "Em andamento":3 }[a.health.label] ?? 9) - ({ Urgente:0, Atenção:1, Pendência:2, "Em andamento":3 }[b.health.label] ?? 9))
+      .sort((a,b) => ({ Urgente:0, Atenção:1, Pendência:2, "Não verificado":3, "Em andamento":4 }[a.health.label] ?? 9) - ({ Urgente:0, Atenção:1, Pendência:2, "Não verificado":3, "Em andamento":4 }[b.health.label] ?? 9))
       .slice(0,12);
 
     $("#reportCasesAttention").innerHTML = attention.length ? attention.map(({item,health}) => {
@@ -1268,11 +1296,19 @@
       }
     });
 
-    const shown = results.slice(0, 20);
-    target.innerHTML = shown.length ? shown.map((r) =>
-      '<button class="global-result" type="button" data-global-kind="' + esc(r.kind) + '" data-global-id="' + esc(r.id) + '">' +
-      '<strong>' + esc(r.title) + '</strong><span>' + esc(r.meta) + '</span></button>'
-    ).join("") : '<div class="empty">Nenhum resultado encontrado.</div>';
+    const shown = results.slice(0, 30);
+    const groupLabels = {
+      client: "Clientes", case: "Processos", deadline: "Prazos", task: "Tarefas",
+      event: "Agenda", finance: "Financeiro", lead: "CRM", document: "Documentos", template: "Modelos"
+    };
+    let previousKind = null;
+    target.innerHTML = shown.length ? shown.map((r) => {
+      const heading = previousKind === r.kind ? "" : '<div class="global-search-group">' + esc(groupLabels[r.kind] || r.kind) + '</div>';
+      previousKind = r.kind;
+      return heading + '<button class="global-result" type="button" data-global-kind="' + esc(r.kind) + '" data-global-id="' + esc(r.id) + '">' +
+        '<strong>' + esc(r.title) + '</strong><span>' + esc(r.meta) + '</span></button>';
+    }).join("") + (results.length > shown.length ? '<div class="global-search-summary">Mostrando 30 de ' + results.length + ' resultados. Refine a busca para localizar o item desejado.</div>' : "")
+      : '<div class="empty">Nenhum resultado encontrado.</div>';
     target.classList.remove("hidden");
   }
 
