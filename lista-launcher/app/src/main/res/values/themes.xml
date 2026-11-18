@@ -9,12 +9,43 @@
         <item name="android:enforceNavigationBarContrast">false</item>
         <item name="android:enforceStatusBarContrast">false</item>
         <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:fontFamily">@font/manrope_regular</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:textColorHighlight">#55FFFFFF</item>
+    </style>
+
+    <!-- Painel que sobe de baixo (menus de app, opções, renomear). -->
+    <style name="ListaSheet" parent="@android:style/Theme.DeviceDefault.Dialog.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowAnimationStyle">@style/ListaSheetAnimation</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.55</item>
+        <item name="android:windowCloseOnTouchOutside">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@color/sheet_bg</item>
+        <item name="android:fontFamily">@font/manrope_regular</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:textColorHighlight">#55FFFFFF</item>
+    </style>
+
+    <style name="ListaSheetAnimation">
+        <item name="android:windowEnterAnimation">@anim/sheet_in</item>
+        <item name="android:windowExitAnimation">@anim/sheet_out</item>
     </style>
 
     <style name="HomeText">
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:shadowColor">@color/text_shadow</item>
-        <item name="android:shadowRadius">6</item>
+        <item name="android:shadowRadius">8</item>
         <item name="android:shadowDy">1</item>
+    </style>
+
+    <style name="Caps">
+        <item name="android:fontFamily">@font/manrope_medium</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.16</item>
+        <item name="android:textSize">12sp</item>
     </style>
 </resources>

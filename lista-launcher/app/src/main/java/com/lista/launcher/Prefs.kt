@@ -19,6 +19,10 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_AUTO_KEYBOARD, false)
         set(value) = sp.edit().putBoolean(KEY_AUTO_KEYBOARD, value).apply()
 
+    var edgeScroll: Boolean
+        get() = sp.getBoolean(KEY_EDGE_SCROLL, true)
+        set(value) = sp.edit().putBoolean(KEY_EDGE_SCROLL, value).apply()
+
     var initialized: Boolean
         get() = sp.getBoolean(KEY_INITIALIZED, false)
         set(value) = sp.edit().putBoolean(KEY_INITIALIZED, value).apply()
@@ -37,5 +41,6 @@ class Prefs(context: Context) {
         const val KEY_HIDDEN = "hidden"
         const val KEY_AUTO_KEYBOARD = "auto_keyboard"
         const val KEY_INITIALIZED = "initialized"
+        const val KEY_EDGE_SCROLL = "edge_scroll"
     }
 }

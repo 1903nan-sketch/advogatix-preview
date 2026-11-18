@@ -3,7 +3,6 @@ package com.lista.launcher
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.ActivityOptions
-import android.app.AlertDialog
 import android.app.SearchManager
 import android.app.role.RoleManager
 import android.content.ActivityNotFoundException
@@ -32,8 +31,9 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowInsets
-import android.view.WindowManager
+import android.view.animation.AnimationUtils
 import android.view.animation.DecelerateInterpolator
+import android.view.animation.LayoutAnimationController
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.AbsListView
@@ -51,6 +51,7 @@ import java.util.Locale
 import java.util.concurrent.Executors
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.min
 
 class MainActivity : Activity() {
 
@@ -58,6 +59,7 @@ class MainActivity : Activity() {
     private lateinit var repo: AppRepository
     private lateinit var launcherApps: LauncherApps
     private lateinit var imm: InputMethodManager
+    private lateinit var sheet: Sheet
 
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -66,14 +68,19 @@ class MainActivity : Activity() {
     private var allApps: List<AppEntry> = emptyList()
     private var drawerApps: List<AppEntry> = emptyList()
     private var byKey: Map<String, AppEntry> = emptyMap()
+    private var sections: List<Pair<Char, Int>> = emptyList()
 
     // Views
     private lateinit var root: FrameLayout
+    private lateinit var homeLayer: FrameLayout
     private lateinit var home: LinearLayout
+    private lateinit var homeEdge: View
+    private lateinit var edgePill: View
     private lateinit var favoritesView: LinearLayout
     private lateinit var homeEmpty: TextView
     private lateinit var defaultBanner: TextView
     private lateinit var drawer: LinearLayout
+    private lateinit var listFrame: FrameLayout
     private lateinit var search: EditText
     private lateinit var clearSearch: ImageView
     private lateinit var appList: ListView
@@ -81,14 +88,18 @@ class MainActivity : Activity() {
     private lateinit var scrubber: AlphabetScrubber
     private lateinit var letterBubble: TextView
     private lateinit var adapter: AppListAdapter
+    private lateinit var rowsIn: LayoutAnimationController
 
     private var drawerOpen = false
     private var imeVisible = false
     private var backCallback: Any? = null
+    private var edgeEnabled = true
 
     private lateinit var gestures: GestureDetector
     private var downListAtTop = false
     private var downOnScrubber = false
+    /** Toque que começou na borda direita da tela inicial e está rolando a lista. */
+    private var edgeScrubbing = false
 
     private val homePad = Rect()
     private val drawerPad = Rect()
@@ -116,13 +127,19 @@ class MainActivity : Activity() {
         repo = AppRepository(this)
         launcherApps = getSystemService(LauncherApps::class.java)!!
         imm = getSystemService(InputMethodManager::class.java)!!
+        sheet = Sheet(this)
+        edgeEnabled = prefs.edgeScroll
 
         root = findViewById(R.id.root)
+        homeLayer = findViewById(R.id.homeLayer)
         home = findViewById(R.id.home)
+        homeEdge = findViewById(R.id.homeEdge)
+        edgePill = findViewById(R.id.edgePill)
         favoritesView = findViewById(R.id.favorites)
         homeEmpty = findViewById(R.id.homeEmpty)
         defaultBanner = findViewById(R.id.defaultBanner)
         drawer = findViewById(R.id.drawer)
+        listFrame = findViewById(R.id.listFrame)
         search = findViewById(R.id.search)
         clearSearch = findViewById(R.id.clearSearch)
         appList = findViewById(R.id.appList)
@@ -210,6 +227,19 @@ class MainActivity : Activity() {
             drawer.setPadding(drawerPad.left, drawerPad.top + top, drawerPad.right, drawerPad.bottom + max(bottom, ime))
             insets
         }
+
+        // Com navegação por gestos, a borda direita também é o gesto de "voltar".
+        // Reserva o trecho do meio para a barra de letras (o sistema aceita até 200dp).
+        if (Build.VERSION.SDK_INT >= 29) {
+            val exclude = View.OnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+                val h = v.height
+                val band = min(h, dp(200))
+                val zone = min(v.width, dp(EDGE_ZONE_DP))
+                v.systemGestureExclusionRects = listOf(Rect(v.width - zone, (h - band) / 2, v.width, (h + band) / 2))
+            }
+            homeEdge.addOnLayoutChangeListener(exclude)
+            scrubber.addOnLayoutChangeListener(exclude)
+        }
     }
 
     // ------------------------------------------------------------------ tela inicial
@@ -226,7 +256,7 @@ class MainActivity : Activity() {
             safeStart(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_CALENDAR))
         }
         defaultBanner.setOnClickListener { requestDefaultHome() }
-        findViewById<View>(R.id.openDrawer).setOnClickListener { openDrawer() }
+        findViewById<View>(R.id.openDrawer).setOnClickListener { openDrawer(fromEdge = false) }
         home.setOnLongClickListener { showSettings(); true }
     }
 
@@ -249,6 +279,7 @@ class MainActivity : Activity() {
     private fun setupDrawer() {
         adapter = AppListAdapter(LayoutInflater.from(this))
         appList.adapter = adapter
+        rowsIn = LayoutAnimationController(AnimationUtils.loadAnimation(this, R.anim.row_in), 0.06f)
         appList.setOnItemClickListener { _, view, pos, _ -> launch(adapter.getItem(pos), view) }
         appList.setOnItemLongClickListener { _, _, pos, _ -> showAppMenu(adapter.getItem(pos)); true }
         appList.setOnScrollListener(object : AbsListView.OnScrollListener {
@@ -278,18 +309,41 @@ class MainActivity : Activity() {
         clearSearch.setOnClickListener { search.setText("") }
         webSearch.setOnClickListener { searchWeb(search.text.toString()) }
 
-        scrubber.onLetter = { letter, position ->
-            appList.setSelection(position)
-            letterBubble.animate().cancel()
-            letterBubble.alpha = 1f
-            letterBubble.text = letter.toString()
-            letterBubble.visibility = View.VISIBLE
-            hideKeyboard()
-        }
+        scrubber.onScrub = { index, fraction, y -> scrubTo(index, fraction, y) }
         scrubber.onRelease = {
-            letterBubble.animate().alpha(0f).setDuration(250).withEndAction {
+            adapter.activeSection = null
+            letterBubble.animate().cancel()
+            letterBubble.animate().alpha(0f).scaleX(0.7f).scaleY(0.7f).setDuration(180).withEndAction {
                 letterBubble.visibility = View.GONE
             }.start()
+        }
+    }
+
+    /**
+     * Rola a lista acompanhando o dedo: a letra sob o dedo vai para o topo e,
+     * dentro de cada letra, a posição do dedo escolhe o app (rolagem contínua).
+     */
+    private fun scrubTo(index: Int, fraction: Float, y: Float) {
+        if (index !in sections.indices || drawerApps.isEmpty()) return
+        val (letter, start) = sections[index]
+        val end = if (index + 1 < sections.size) sections[index + 1].second else drawerApps.size
+        val exact = start + fraction * (end - start)
+        val item = exact.toInt().coerceIn(0, drawerApps.size - 1)
+        val rowHeight = appList.getChildAt(0)?.height?.takeIf { it > 0 } ?: dp(56)
+        appList.setSelectionFromTop(item, -((exact - item) * rowHeight).toInt())
+        adapter.activeSection = letter
+
+        if (imeVisible) hideKeyboard()
+        val size = dp(68).toFloat()
+        letterBubble.text = letter.toString()
+        letterBubble.translationY = (y - size / 2f).coerceIn(0f, max(0f, listFrame.height - size))
+        if (letterBubble.visibility != View.VISIBLE) {
+            letterBubble.animate().cancel()
+            letterBubble.alpha = 0f
+            letterBubble.scaleX = 0.7f
+            letterBubble.scaleY = 0.7f
+            letterBubble.visibility = View.VISIBLE
+            letterBubble.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(140).start()
         }
     }
 
@@ -297,15 +351,21 @@ class MainActivity : Activity() {
         val query = search.text.toString()
         val searching = query.isNotBlank()
         val results = if (searching) AppSearch.filter(drawerApps, query) else drawerApps
-        adapter.submit(results)
+        adapter.submit(results, sections = !searching, markFirst = searching && results.isNotEmpty())
         clearSearch.visibility = if (query.isEmpty()) View.GONE else View.VISIBLE
-        scrubber.visibility = if (!searching && results.size > 12) View.VISIBLE else View.GONE
+        val showRail = !searching && results.size > MIN_APPS_FOR_RAIL
+        scrubber.visibility = if (showRail) View.VISIBLE else View.GONE
         if (searching && results.isEmpty()) {
             webSearch.text = getString(R.string.search_web, query.trim())
             webSearch.visibility = View.VISIBLE
         } else {
             webSearch.visibility = View.GONE
         }
+    }
+
+    private fun updateEdge() {
+        val show = edgeEnabled && drawerApps.size > MIN_APPS_FOR_RAIL
+        edgePill.visibility = if (show) View.VISIBLE else View.GONE
     }
 
     private fun launchTopResult() {
@@ -316,41 +376,63 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun openDrawer() {
+    private fun openDrawer(fromEdge: Boolean) {
         if (drawerOpen) return
         drawerOpen = true
         setBackCallback(true)
-        appList.setSelection(0)
-        drawer.visibility = View.VISIBLE
         drawer.animate().cancel()
+        homeLayer.animate().cancel()
+        drawer.visibility = View.VISIBLE
         drawer.alpha = 0f
-        drawer.translationY = dp(56).toFloat()
-        drawer.animate().alpha(1f).translationY(0f).setDuration(220)
-            .setInterpolator(DecelerateInterpolator()).start()
-        home.animate().cancel()
-        home.animate().alpha(0f).setDuration(160).withEndAction {
-            if (drawerOpen) home.visibility = View.INVISIBLE
-        }.start()
-        if (prefs.autoKeyboard) showKeyboard()
+        if (fromEdge) {
+            // Aparece na hora: o dedo já está rolando a lista (sem animar as linhas).
+            appList.layoutAnimation = null
+            drawer.translationY = 0f
+            drawer.animate().alpha(1f).setDuration(120).start()
+            homeLayer.animate().alpha(0f).setDuration(100).withEndAction {
+                if (drawerOpen) homeLayer.visibility = View.INVISIBLE
+            }.start()
+        } else {
+            appList.setSelection(0)
+            drawer.translationY = dp(40).toFloat()
+            drawer.animate().alpha(1f).translationY(0f).setDuration(260)
+                .setInterpolator(DecelerateInterpolator(2f)).start()
+            appList.layoutAnimation = rowsIn
+            appList.scheduleLayoutAnimation()
+            homeLayer.animate().alpha(0f).translationY(-dp(24).toFloat()).setDuration(180).withEndAction {
+                if (drawerOpen) homeLayer.visibility = View.INVISIBLE
+            }.start()
+            if (prefs.autoKeyboard) showKeyboard()
+        }
     }
 
     private fun closeDrawer(animate: Boolean) {
         if (!drawerOpen) return
         drawerOpen = false
+        edgeScrubbing = false
         setBackCallback(false)
         hideKeyboard()
         if (search.text.isNotEmpty()) search.setText("")
-        home.visibility = View.VISIBLE
+        adapter.activeSection = null
+        letterBubble.visibility = View.GONE
+        homeLayer.visibility = View.VISIBLE
         drawer.animate().cancel()
-        home.animate().cancel()
+        homeLayer.animate().cancel()
         if (animate) {
-            home.animate().alpha(1f).setDuration(200).start()
-            drawer.animate().alpha(0f).translationY(dp(56).toFloat()).setDuration(180).withEndAction {
-                if (!drawerOpen) drawer.visibility = View.GONE
+            homeLayer.animate().alpha(1f).translationY(0f).setDuration(220).start()
+            drawer.animate().alpha(0f).translationY(dp(40).toFloat()).setDuration(180).withEndAction {
+                if (!drawerOpen) {
+                    // INVISIBLE (e não GONE): a lista continua medida, pronta para a borda direita.
+                    drawer.visibility = View.INVISIBLE
+                    drawer.translationY = 0f
+                }
             }.start()
         } else {
-            home.alpha = 1f
-            drawer.visibility = View.GONE
+            homeLayer.alpha = 1f
+            homeLayer.translationY = 0f
+            drawer.alpha = 0f
+            drawer.translationY = 0f
+            drawer.visibility = View.INVISIBLE
         }
     }
 
@@ -381,8 +463,17 @@ class MainActivity : Activity() {
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
+            edgeScrubbing = !drawerOpen && inEdgeZone(ev)
+            if (edgeScrubbing) openDrawer(fromEdge = true)
             downListAtTop = !appList.canScrollVertically(-1)
             downOnScrubber = scrubber.isShown && isInside(scrubber, ev)
+        }
+        if (edgeScrubbing) {
+            // Repassa o arraste da borda da tela inicial direto para a barra de letras.
+            forwardToScrubber(ev)
+            val action = ev.actionMasked
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) edgeScrubbing = false
+            return true
         }
         val handled = gestures.onTouchEvent(ev)
         if (handled && ev.actionMasked == MotionEvent.ACTION_UP) {
@@ -393,6 +484,25 @@ class MainActivity : Activity() {
             return true
         }
         return super.dispatchTouchEvent(ev)
+    }
+
+    private fun inEdgeZone(ev: MotionEvent): Boolean {
+        if (!edgeEnabled || scrubber.visibility != View.VISIBLE || scrubber.letters.isEmpty()) return false
+        val rootLoc = IntArray(2)
+        root.getLocationOnScreen(rootLoc)
+        if (ev.rawX < rootLoc[0] + root.width - dp(EDGE_ZONE_DP)) return false
+        val loc = IntArray(2)
+        scrubber.getLocationOnScreen(loc)
+        return ev.rawY >= loc[1] && ev.rawY <= loc[1] + scrubber.height
+    }
+
+    private fun forwardToScrubber(ev: MotionEvent) {
+        val loc = IntArray(2)
+        scrubber.getLocationOnScreen(loc)
+        val e = MotionEvent.obtain(ev)
+        e.setLocation(ev.rawX - loc[0], ev.rawY - loc[1])
+        scrubber.handleTouch(e, force = true)
+        e.recycle()
     }
 
     private inner class SwipeListener : GestureDetector.SimpleOnGestureListener() {
@@ -407,7 +517,7 @@ class MainActivity : Activity() {
             if (abs(dy) < dp(56) || abs(dy) < abs(dx) * 1.3f || abs(velocityY) < minVelocity) return false
 
             if (!drawerOpen) {
-                if (dy < 0) openDrawer() else expandNotifications()
+                if (dy < 0) openDrawer(fromEdge = false) else expandNotifications()
                 return true
             }
             if (dy > 0 && downListAtTop && !downOnScrubber) {
@@ -443,6 +553,10 @@ class MainActivity : Activity() {
     }
 
     private fun loadAppsAsync() {
+        testApps?.let {
+            onAppsLoaded(it)
+            return
+        }
         executor.execute {
             val raw = try {
                 repo.loadRaw()
@@ -475,13 +589,15 @@ class MainActivity : Activity() {
 
         val hidden = prefs.hidden
         drawerApps = allApps.filter { it.key !in hidden }
-        val sections = ArrayList<Pair<Char, Int>>()
+        val list = ArrayList<Pair<Char, Int>>()
         val seen = HashSet<Char>()
-        drawerApps.forEachIndexed { i, app -> if (seen.add(app.section)) sections += app.section to i }
-        scrubber.setSections(sections)
+        drawerApps.forEachIndexed { i, app -> if (seen.add(app.section)) list += app.section to i }
+        sections = list
+        scrubber.setLetters(list.map { it.first })
 
         renderFavorites()
         applyFilter()
+        updateEdge()
     }
 
     private fun resolveKey(key: String): AppEntry? {
@@ -620,9 +736,10 @@ class MainActivity : Activity() {
         emptyList()
     }
 
-    private fun shortcutActions(app: AppEntry): List<Pair<CharSequence, () -> Unit>> =
+    /** Atalhos do próprio app (ex.: conversas do WhatsApp), mostrados no topo do menu. */
+    private fun shortcutItems(app: AppEntry): List<Sheet.Item> =
         shortcutsFor(app).map { s ->
-            ("›  " + s.shortLabel) to {
+            Sheet.Item(s.shortLabel!!, group = 0) {
                 try {
                     launcherApps.startShortcut(s, null, null)
                 } catch (_: Exception) {
@@ -633,84 +750,81 @@ class MainActivity : Activity() {
 
     // ------------------------------------------------------------------ menus
 
-    private fun showMenu(title: CharSequence, actions: List<Pair<CharSequence, () -> Unit>>) {
-        AlertDialog.Builder(this)
-            .setTitle(title)
-            .setItems(actions.map { it.first }.toTypedArray()) { _, which -> actions[which].second() }
-            .show()
-    }
-
     private fun showAppMenu(app: AppEntry) {
-        val actions = ArrayList<Pair<CharSequence, () -> Unit>>()
-        actions += shortcutActions(app)
-        actions += if (app.key in prefs.favorites) {
-            getString(R.string.menu_remove_home) to { removeFavorite(app) }
+        val items = ArrayList(shortcutItems(app))
+        items += if (app.key in prefs.favorites) {
+            Sheet.Item(getString(R.string.menu_remove_home), group = 1) { removeFavorite(app) }
         } else {
-            getString(R.string.menu_add_home) to { addFavorite(app) }
+            Sheet.Item(getString(R.string.menu_add_home), group = 1) { addFavorite(app) }
         }
-        actions += getString(R.string.menu_rename) to { showRename(app) }
-        actions += getString(R.string.menu_hide) to { hideApp(app) }
-        actions += getString(R.string.menu_info) to { openAppInfo(app) }
+        items += Sheet.Item(getString(R.string.menu_rename), group = 1) { showRename(app) }
+        items += Sheet.Item(getString(R.string.menu_hide), group = 1) { hideApp(app) }
+        items += Sheet.Item(getString(R.string.menu_info), group = 1) { openAppInfo(app) }
         if (!app.raw.isSystem && app.raw.isMainProfile) {
-            actions += getString(R.string.menu_uninstall) to { uninstall(app) }
+            items += Sheet.Item(getString(R.string.menu_uninstall), group = 1, danger = true) { uninstall(app) }
         }
-        showMenu(app.label, actions)
+        sheet.show(app.label, items)
     }
 
     private fun showFavoriteMenu(app: AppEntry) {
         val favs = prefs.favorites.filter { byKey.containsKey(it) }
         val index = favs.indexOf(app.key)
-        val actions = ArrayList<Pair<CharSequence, () -> Unit>>()
-        actions += shortcutActions(app)
-        if (index > 0) actions += getString(R.string.menu_move_up) to { moveFavorite(app, -1) }
-        if (index in 0 until favs.size - 1) actions += getString(R.string.menu_move_down) to { moveFavorite(app, +1) }
-        actions += getString(R.string.menu_rename) to { showRename(app) }
-        actions += getString(R.string.menu_remove_home) to { removeFavorite(app) }
-        actions += getString(R.string.menu_info) to { openAppInfo(app) }
-        showMenu(app.label, actions)
+        val items = ArrayList(shortcutItems(app))
+        if (index > 0) items += Sheet.Item(getString(R.string.menu_move_up), group = 1) { moveFavorite(app, -1) }
+        if (index in 0 until favs.size - 1) {
+            items += Sheet.Item(getString(R.string.menu_move_down), group = 1) { moveFavorite(app, +1) }
+        }
+        items += Sheet.Item(getString(R.string.menu_rename), group = 1) { showRename(app) }
+        items += Sheet.Item(getString(R.string.menu_remove_home), group = 1) { removeFavorite(app) }
+        items += Sheet.Item(getString(R.string.menu_info), group = 1) { openAppInfo(app) }
+        sheet.show(app.label, items)
     }
 
     private fun showRename(app: AppEntry) {
-        val input = EditText(this).apply {
-            setText(app.label)
-            setSelection(text.length)
-            setSingleLine()
-            imeOptions = EditorInfo.IME_ACTION_DONE
-        }
-        val container = FrameLayout(this).apply {
-            setPadding(dp(24), dp(8), dp(24), 0)
-            addView(input)
-        }
-        val save = {
-            val name = input.text.toString().trim()
-            prefs.setCustomName(app.key, name.takeIf { it.isNotEmpty() && it != app.raw.label })
-            rebuild()
-        }
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(R.string.rename_title)
-            .setView(container)
-            .setPositiveButton(R.string.save) { _, _ -> save() }
-            .setNeutralButton(R.string.restore) { _, _ -> prefs.setCustomName(app.key, null); rebuild() }
-            .setNegativeButton(R.string.cancel, null)
-            .create()
-        input.setOnEditorActionListener { _, _, _ -> save(); dialog.dismiss(); true }
-        dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
-        dialog.show()
-        input.requestFocus()
+        val renamed = app.label != app.raw.label
+        sheet.showInput(
+            title = getString(R.string.rename_title) + " · " + app.raw.label,
+            initial = app.label,
+            primary = getString(R.string.save),
+            secondary = if (renamed) getString(R.string.restore) else getString(R.string.cancel),
+            onPrimary = { text ->
+                val name = text.trim()
+                prefs.setCustomName(app.key, name.takeIf { it.isNotEmpty() && it != app.raw.label })
+                rebuild()
+            },
+            onSecondary = {
+                if (renamed) {
+                    prefs.setCustomName(app.key, null)
+                    rebuild()
+                }
+            },
+        )
     }
 
+    private fun yesNo(value: Boolean) = getString(if (value) R.string.yes else R.string.no)
+
     private fun showSettings() {
-        val actions = ArrayList<Pair<CharSequence, () -> Unit>>()
-        actions += getString(R.string.settings_hidden, prefs.hidden.count { byKey.containsKey(it) }) to { showHiddenApps() }
-        actions += getString(
-            if (prefs.autoKeyboard) R.string.settings_keyboard_on else R.string.settings_keyboard_off,
-        ) to { prefs.autoKeyboard = !prefs.autoKeyboard }
-        actions += getString(R.string.settings_wallpaper) to {
+        val hiddenCount = prefs.hidden.count { byKey.containsKey(it) }
+        val items = ArrayList<Sheet.Item>()
+        items += Sheet.Item(getString(R.string.settings_edge), detail = yesNo(edgeEnabled), keepOpen = true) { detail ->
+            edgeEnabled = !edgeEnabled
+            prefs.edgeScroll = edgeEnabled
+            detail.text = yesNo(edgeEnabled)
+            updateEdge()
+        }
+        items += Sheet.Item(getString(R.string.settings_keyboard), detail = yesNo(prefs.autoKeyboard), keepOpen = true) { detail ->
+            prefs.autoKeyboard = !prefs.autoKeyboard
+            detail.text = yesNo(prefs.autoKeyboard)
+        }
+        items += Sheet.Item(getString(R.string.settings_hidden), detail = hiddenCount.toString()) { showHiddenApps() }
+        items += Sheet.Item(getString(R.string.settings_wallpaper), group = 1) {
             safeStart(Intent.createChooser(Intent(Intent.ACTION_SET_WALLPAPER), getString(R.string.settings_wallpaper)))
         }
-        if (!isDefaultHome()) actions += getString(R.string.settings_default) to { requestDefaultHome() }
-        actions += getString(R.string.settings_android) to { safeStart(Intent(Settings.ACTION_SETTINGS)) }
-        showMenu(getString(R.string.settings_title), actions)
+        if (!isDefaultHome()) {
+            items += Sheet.Item(getString(R.string.settings_default), group = 1) { requestDefaultHome() }
+        }
+        items += Sheet.Item(getString(R.string.settings_android), group = 1) { safeStart(Intent(Settings.ACTION_SETTINGS)) }
+        sheet.show(getString(R.string.settings_title), items)
     }
 
     private fun showHiddenApps() {
@@ -719,19 +833,13 @@ class MainActivity : Activity() {
             toast(getString(R.string.hidden_none))
             return
         }
-        val checked = BooleanArray(hiddenApps.size) { true }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.hidden_title)
-            .setMultiChoiceItems(hiddenApps.map { it.label }.toTypedArray(), checked) { _, i, isChecked ->
-                checked[i] = isChecked
-            }
-            .setPositiveButton(R.string.save) { _, _ ->
-                val unhide = hiddenApps.filterIndexed { i, _ -> !checked[i] }.map { it.key }.toSet()
-                prefs.hidden = prefs.hidden - unhide
+        val items = hiddenApps.map { app ->
+            Sheet.Item(app.label, detail = getString(R.string.unhide)) {
+                prefs.hidden = prefs.hidden - app.key
                 rebuild()
             }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
+        }
+        sheet.show(getString(R.string.hidden_title), items)
     }
 
     // ------------------------------------------------------------------ launcher padrão
@@ -751,7 +859,6 @@ class MainActivity : Activity() {
             val rm = getSystemService(RoleManager::class.java)
             if (rm != null && rm.isRoleAvailable(RoleManager.ROLE_HOME) && !rm.isRoleHeld(RoleManager.ROLE_HOME)) {
                 try {
-                    @Suppress("DEPRECATION")
                     startActivityForResult(rm.createRequestRoleIntent(RoleManager.ROLE_HOME), REQ_HOME_ROLE)
                     return
                 } catch (_: Exception) {
@@ -776,8 +883,14 @@ class MainActivity : Activity() {
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
-    private companion object {
-        const val MAX_FAVORITES = 8
-        const val REQ_HOME_ROLE = 42
+    companion object {
+        private const val MAX_FAVORITES = 8
+        private const val REQ_HOME_ROLE = 42
+        private const val MIN_APPS_FOR_RAIL = 12
+        /** Largura da faixa na borda direita que começa a rolagem. */
+        private const val EDGE_ZONE_DP = 36
+
+        /** Só para testes: substitui a leitura dos apps instalados. */
+        internal var testApps: List<RawApp>? = null
     }
 }

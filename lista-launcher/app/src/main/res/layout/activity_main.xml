@@ -4,123 +4,153 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- ============ TELA INICIAL ============ -->
-    <LinearLayout
-        android:id="@+id/home"
+    <!-- ===================== TELA INICIAL ===================== -->
+    <FrameLayout
+        android:id="@+id/homeLayer"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@color/scrim_home"
-        android:orientation="vertical"
-        android:paddingStart="32dp"
-        android:paddingTop="28dp"
-        android:paddingEnd="32dp"
-        android:paddingBottom="4dp">
+        android:background="@drawable/home_scrim">
 
-        <TextClock
-            android:id="@+id/clock"
-            style="@style/HomeText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?android:attr/selectableItemBackground"
-            android:fontFamily="sans-serif-thin"
-            android:format12Hour="h:mm"
-            android:format24Hour="HH:mm"
-            android:includeFontPadding="false"
-            android:textSize="68sp" />
-
-        <TextClock
-            android:id="@+id/date"
-            style="@style/HomeText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:background="?android:attr/selectableItemBackground"
-            android:fontFamily="sans-serif-light"
-            android:textColor="@color/text_secondary"
-            android:textSize="17sp" />
-
-        <TextView
-            android:id="@+id/defaultBanner"
-            style="@style/HomeText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:background="@drawable/search_bg"
-            android:paddingStart="16dp"
-            android:paddingTop="8dp"
-            android:paddingEnd="16dp"
-            android:paddingBottom="8dp"
-            android:text="@string/set_default_banner"
-            android:textSize="14sp"
-            android:visibility="gone" />
-
-        <FrameLayout
+        <LinearLayout
+            android:id="@+id/home"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1">
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:paddingStart="32dp"
+            android:paddingTop="40dp"
+            android:paddingEnd="32dp"
+            android:paddingBottom="8dp">
 
-            <LinearLayout
-                android:id="@+id/favorites"
-                android:layout_width="match_parent"
+            <TextClock
+                android:id="@+id/clock"
+                style="@style/HomeText"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical"
-                android:orientation="vertical" />
+                android:layout_marginStart="-5dp"
+                android:background="?android:attr/selectableItemBackground"
+                android:fontFamily="@font/manrope_extralight"
+                android:format12Hour="h:mm"
+                android:format24Hour="HH:mm"
+                android:includeFontPadding="false"
+                android:letterSpacing="-0.04"
+                android:textSize="92sp" />
+
+            <TextClock
+                android:id="@+id/date"
+                style="@style/HomeText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="?android:attr/selectableItemBackground"
+                android:fontFamily="@font/manrope_medium"
+                android:letterSpacing="0.16"
+                android:textAllCaps="true"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/defaultBanner"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
+                android:background="@drawable/pill_bg"
+                android:fontFamily="@font/manrope_medium"
+                android:paddingStart="18dp"
+                android:paddingTop="10dp"
+                android:paddingEnd="18dp"
+                android:paddingBottom="10dp"
+                android:text="@string/set_default_banner"
+                android:textColor="@color/text_primary"
+                android:textSize="13sp"
+                android:visibility="gone" />
+
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
 
             <TextView
                 android:id="@+id/homeEmpty"
                 style="@style/HomeText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical"
-                android:lineSpacingMultiplier="1.15"
+                android:layout_marginEnd="24dp"
+                android:layout_marginBottom="12dp"
+                android:fontFamily="@font/manrope_light"
+                android:lineSpacingMultiplier="1.2"
                 android:text="@string/home_empty"
                 android:textColor="@color/text_secondary"
                 android:textSize="16sp"
                 android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/favorites"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="24dp"
+                android:orientation="vertical" />
+
+            <ImageView
+                android:id="@+id/openDrawer"
+                android:layout_width="64dp"
+                android:layout_height="44dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="20dp"
+                android:alpha="0.45"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/open_apps"
+                android:scaleType="center"
+                android:src="@drawable/ic_chevron_up" />
+        </LinearLayout>
+
+        <!-- Borda direita: tocar e arrastar aqui rola direto pela lista de apps. -->
+        <FrameLayout
+            android:id="@+id/homeEdge"
+            android:layout_width="36dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="end">
+
+            <View
+                android:id="@+id/edgePill"
+                android:layout_width="3dp"
+                android:layout_height="56dp"
+                android:layout_gravity="end|center_vertical"
+                android:layout_marginEnd="7dp"
+                android:background="@drawable/rail_pill" />
         </FrameLayout>
+    </FrameLayout>
 
-        <ImageView
-            android:id="@+id/openDrawer"
-            android:layout_width="56dp"
-            android:layout_height="48dp"
-            android:layout_gravity="center_horizontal"
-            android:alpha="0.6"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/open_apps"
-            android:scaleType="center"
-            android:src="@drawable/ic_chevron_up" />
-    </LinearLayout>
-
-    <!-- ============ LISTA DE APPS ============ -->
+    <!-- ===================== LISTA DE APPS ===================== -->
     <LinearLayout
         android:id="@+id/drawer"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@color/scrim_drawer"
+        android:background="@color/drawer_bg"
         android:clickable="true"
         android:descendantFocusability="beforeDescendants"
         android:focusable="true"
         android:focusableInTouchMode="true"
         android:orientation="vertical"
-        android:paddingTop="12dp"
-        android:visibility="gone">
+        android:paddingTop="8dp"
+        android:visibility="invisible">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:layout_marginStart="16dp"
-            android:layout_marginEnd="16dp"
-            android:layout_marginBottom="8dp"
-            android:background="@drawable/search_bg"
+            android:layout_height="52dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="20dp"
+            android:layout_marginBottom="4dp"
+            android:background="@drawable/pill_bg"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingStart="16dp"
-            android:paddingEnd="4dp">
+            android:paddingStart="18dp"
+            android:paddingEnd="6dp">
 
             <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:alpha="0.6"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:alpha="0.55"
                 android:importantForAccessibility="no"
                 android:src="@drawable/ic_search" />
 
@@ -130,6 +160,7 @@
                 android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:background="@null"
+                android:fontFamily="@font/manrope_regular"
                 android:hint="@string/search_hint"
                 android:imeOptions="actionGo|flagNoExtractUi|flagNoPersonalizedLearning"
                 android:importantForAutofill="no"
@@ -138,8 +169,8 @@
                 android:paddingEnd="8dp"
                 android:singleLine="true"
                 android:textColor="@color/text_primary"
-                android:textColorHint="@color/text_hint"
-                android:textSize="17sp" />
+                android:textColorHint="@color/text_tertiary"
+                android:textSize="16sp" />
 
             <ImageView
                 android:id="@+id/clearSearch"
@@ -154,6 +185,7 @@
         </LinearLayout>
 
         <FrameLayout
+            android:id="@+id/listFrame"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1">
@@ -165,8 +197,11 @@
                 android:clipToPadding="false"
                 android:divider="@null"
                 android:dividerHeight="0dp"
+                android:fadingEdgeLength="28dp"
                 android:listSelector="@android:color/transparent"
-                android:paddingBottom="16dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="24dp"
+                android:requiresFadingEdge="vertical"
                 android:scrollbars="none" />
 
             <TextView
@@ -174,32 +209,36 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="?android:attr/selectableItemBackground"
-                android:paddingStart="28dp"
-                android:paddingTop="14dp"
+                android:fontFamily="@font/manrope_regular"
+                android:paddingStart="56dp"
+                android:paddingTop="16dp"
                 android:paddingEnd="28dp"
-                android:paddingBottom="14dp"
+                android:paddingBottom="16dp"
                 android:textColor="@color/text_secondary"
-                android:textSize="18sp"
+                android:textSize="17sp"
                 android:visibility="gone" />
 
             <com.lista.launcher.AlphabetScrubber
                 android:id="@+id/scrubber"
-                android:layout_width="32dp"
+                android:layout_width="120dp"
                 android:layout_height="match_parent"
                 android:layout_gravity="end"
-                android:paddingTop="8dp"
-                android:paddingBottom="8dp" />
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp" />
 
             <TextView
                 android:id="@+id/letterBubble"
-                android:layout_width="112dp"
-                android:layout_height="112dp"
-                android:layout_gravity="center"
+                android:layout_width="68dp"
+                android:layout_height="68dp"
+                android:layout_gravity="top|end"
+                android:layout_marginEnd="116dp"
                 android:background="@drawable/bubble_bg"
-                android:fontFamily="sans-serif-light"
+                android:elevation="6dp"
+                android:fontFamily="@font/manrope_medium"
                 android:gravity="center"
-                android:textColor="@color/text_primary"
-                android:textSize="56sp"
+                android:includeFontPadding="false"
+                android:textColor="@color/accent"
+                android:textSize="30sp"
                 android:visibility="gone" />
         </FrameLayout>
     </LinearLayout>

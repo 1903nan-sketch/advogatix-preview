@@ -6,8 +6,8 @@
     <string name="search_web">Buscar “%1$s” na web</string>
     <string name="clear_search">Limpar busca</string>
     <string name="open_apps">Abrir lista de apps</string>
-    <string name="home_empty">Deslize para cima para ver todos os apps.\n\nToque e segure um app da lista para fixá-lo aqui.\n\nToque e segure a tela para opções.</string>
-    <string name="set_default_banner">Toque para usar o Lista como tela inicial</string>
+    <string name="home_empty">Deslize para cima, ou arraste o dedo na borda direita, para ver todos os apps.\n\nToque e segure um app da lista para fixá-lo aqui.\n\nToque e segure a tela para ver as opções.</string>
+    <string name="set_default_banner">Usar o Lista como tela inicial</string>
 
     <string name="menu_add_home">Fixar na tela inicial</string>
     <string name="menu_remove_home">Remover da tela inicial</string>
@@ -24,14 +24,18 @@
     <string name="restore">Nome original</string>
 
     <string name="settings_title">Lista</string>
-    <string name="settings_hidden">Apps ocultos (%1$d)</string>
-    <string name="settings_keyboard_on">Abrir teclado ao abrir a lista: sim</string>
-    <string name="settings_keyboard_off">Abrir teclado ao abrir a lista: não</string>
-    <string name="settings_wallpaper">Trocar papel de parede</string>
-    <string name="settings_default">Definir como tela inicial padrão</string>
+    <string name="settings_hidden">Apps ocultos</string>
+    <string name="settings_keyboard">Teclado ao abrir a lista</string>
+    <string name="settings_edge">Rolar pela borda direita</string>
+    <string name="settings_wallpaper">Papel de parede</string>
+    <string name="settings_default">Usar como tela inicial padrão</string>
     <string name="settings_android">Configurações do Android</string>
-    <string name="hidden_title">Desmarque para reexibir</string>
+    <string name="yes">Sim</string>
+    <string name="no">Não</string>
+    <string name="hidden_title">Toque para reexibir</string>
     <string name="hidden_none">Nenhum app oculto</string>
+    <string name="unhide">Reexibir</string>
+    <string name="search_top_hint">→</string>
 
     <string name="toast_added">Fixado na tela inicial</string>
     <string name="toast_max">Máximo de %1$d apps na tela inicial</string>

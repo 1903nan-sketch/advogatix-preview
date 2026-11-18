@@ -13,8 +13,8 @@ android {
         applicationId = "com.lista.launcher"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
     }
 
     // Chave de depuração versionada no repositório, para que qualquer build
@@ -48,6 +48,7 @@ android {
 
     testOptions {
         unitTests.isReturnDefaultValues = true
+        unitTests.isIncludeAndroidResources = true
     }
 
     dependenciesInfo {
@@ -64,4 +65,11 @@ kotlin {
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.18.1")
+}
+
+// As capturas de tela (Robolectric) são pesadas: só rodam com -Pscreenshots.
+tasks.withType<Test>().configureEach {
+    maxHeapSize = "2g"
+    if (!project.hasProperty("screenshots")) exclude("**/ScreenshotTest*")
 }
