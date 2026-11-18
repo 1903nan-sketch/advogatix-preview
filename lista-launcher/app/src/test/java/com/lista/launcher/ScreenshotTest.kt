@@ -236,9 +236,24 @@ class ScreenshotTest {
         finishRowAnimation(a)
         capture(a, "10-deslizar-para-baixo.png")
 
-        // Toque simples num app fixado continua sendo um clique (não vira arraste).
+        // Deslizar para cima a partir da faixa de baixo: apps abertos (sem a permissão, explica como ativar).
         call(a, "closeDrawer", false)
         idle()
         assertEquals(View.INVISIBLE, drawer.visibility)
+        val zone = a.findViewById<View>(R.id.bottomZone)
+        val loc = IntArray(2)
+        zone.getLocationOnScreen(loc)
+        val y0 = loc[1] + zone.height / 2f
+        t = SystemClock.uptimeMillis()
+        touch(a, MotionEvent.ACTION_DOWN, x, y0, t)
+        for (i in 1..6) {
+            idle(16)
+            touch(a, MotionEvent.ACTION_MOVE, x, y0 - 30f * i, t)
+        }
+        touch(a, MotionEvent.ACTION_UP, x, y0 - 180f, t)
+        idle(600)
+        assertEquals("a lista não deveria abrir", View.INVISIBLE, drawer.visibility)
+        assertTrue("deveria mostrar como ativar", ShadowDialog.getLatestDialog()?.isShowing == true)
+        capture(a, "11-apps-abertos.png", withDialog = true)
     }
 }

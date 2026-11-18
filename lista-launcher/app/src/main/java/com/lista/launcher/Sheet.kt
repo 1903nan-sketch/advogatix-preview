@@ -27,11 +27,17 @@ class Sheet(private val activity: Activity) {
         val action: (detail: TextView) -> Unit,
     )
 
-    fun show(title: CharSequence?, items: List<Item>): Dialog {
+    fun show(title: CharSequence?, items: List<Item>, message: CharSequence? = null): Dialog {
         val dialog = Dialog(activity, R.style.ListaSheet)
         val inflater = LayoutInflater.from(dialog.context)
         val root = inflater.inflate(R.layout.sheet, null)
         setTitle(root, title)
+        if (!message.isNullOrBlank()) {
+            root.findViewById<TextView>(R.id.sheetMessage).apply {
+                text = message
+                visibility = View.VISIBLE
+            }
+        }
         val list = root.findViewById<LinearLayout>(R.id.sheetItems)
         var lastGroup = items.firstOrNull()?.group
         for (item in items) {

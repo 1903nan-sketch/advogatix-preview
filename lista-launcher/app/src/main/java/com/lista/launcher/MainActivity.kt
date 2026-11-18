@@ -78,6 +78,7 @@ class MainActivity : Activity() {
     private lateinit var home: LinearLayout
     private lateinit var homeEdge: View
     private lateinit var edgePill: View
+    private lateinit var bottomZone: View
     private lateinit var favoritesView: LinearLayout
     private lateinit var homeEmpty: TextView
     private lateinit var defaultBanner: TextView
@@ -109,6 +110,7 @@ class MainActivity : Activity() {
 
     private var homeDrag = HomeDrag.NONE
     private var downRawX = 0f
+    private var downInBottomZone = false
     private var downRawY = 0f
     private var lastRawY = 0f
     private var scrollRemainder = 0f
@@ -151,6 +153,7 @@ class MainActivity : Activity() {
         home = findViewById(R.id.home)
         homeEdge = findViewById(R.id.homeEdge)
         edgePill = findViewById(R.id.edgePill)
+        bottomZone = findViewById(R.id.bottomZone)
         favoritesView = findViewById(R.id.favorites)
         homeEmpty = findViewById(R.id.homeEmpty)
         defaultBanner = findViewById(R.id.defaultBanner)
@@ -277,7 +280,6 @@ class MainActivity : Activity() {
             safeStart(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_CALENDAR))
         }
         defaultBanner.setOnClickListener { requestDefaultHome() }
-        findViewById<View>(R.id.openDrawer).setOnClickListener { openDrawer(OpenMode.ANIMATED) }
         home.setOnLongClickListener { showSettings(); true }
     }
 
@@ -497,6 +499,7 @@ class MainActivity : Activity() {
             edgeScrubbing = !drawerOpen && inEdgeZone(ev)
             if (edgeScrubbing) openDrawer(OpenMode.INSTANT)
             homeDrag = if (!drawerOpen) HomeDrag.PENDING else HomeDrag.NONE
+            downInBottomZone = homeDrag == HomeDrag.PENDING && inBottomZone(ev)
             downRawX = ev.rawX
             downRawY = ev.rawY
             downListAtTop = !appList.canScrollVertically(-1)
@@ -517,7 +520,11 @@ class MainActivity : Activity() {
                     if (abs(dy) > touchSlop && abs(dy) > abs(dx) * 1.2f) {
                         // Virou arraste vertical: tira o toque dos botões (sem clique acidental).
                         cancelChildren(ev)
-                        if (dy < 0) startHomeScroll(ev) else onSwipeDown()
+                        when {
+                            dy < 0 && downInBottomZone -> openRecents()
+                            dy < 0 -> startHomeScroll(ev)
+                            else -> onSwipeDown()
+                        }
                         return true
                     }
                     if (abs(dx) > touchSlop * 2 && abs(dx) > abs(dy)) homeDrag = HomeDrag.NONE
@@ -587,6 +594,34 @@ class MainActivity : Activity() {
                 homeDrag = HomeDrag.NONE
             }
         }
+    }
+
+    /** Faixa de baixo da tela inicial (abaixo dos apps fixados). */
+    private fun inBottomZone(ev: MotionEvent): Boolean {
+        if (bottomZone.height == 0) return false
+        val loc = IntArray(2)
+        bottomZone.getLocationOnScreen(loc)
+        return ev.rawY >= loc[1]
+    }
+
+    /** Deslizar para cima a partir de baixo: tela de apps abertos do sistema. */
+    private fun openRecents() {
+        homeDrag = HomeDrag.CONSUMED
+        if (!ActionsService.showRecents()) showRecentsSetup()
+    }
+
+    private fun showRecentsSetup() {
+        val items = ArrayList<Sheet.Item>()
+        items += Sheet.Item(getString(R.string.recents_open_a11y), detail = getString(R.string.recents_open_a11y_hint)) {
+            safeStart(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        }
+        if (Build.VERSION.SDK_INT >= 33) {
+            // Apps instalados fora da loja precisam liberar a "configuração restrita" antes.
+            items += Sheet.Item(getString(R.string.recents_restricted), detail = getString(R.string.recents_restricted_hint)) {
+                safeStart(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+            }
+        }
+        sheet.show(getString(R.string.recents_title), items, message = getString(R.string.recents_message))
     }
 
     /** Arrastar para baixo na tela inicial: busca com teclado (padrão) ou notificações. */
@@ -930,6 +965,10 @@ class MainActivity : Activity() {
     private fun showSettings() {
         val hiddenCount = prefs.hidden.count { byKey.containsKey(it) }
         val items = ArrayList<Sheet.Item>()
+        items += Sheet.Item(
+            getString(R.string.settings_recents),
+            detail = getString(if (ActionsService.isRunning) R.string.recents_on else R.string.recents_off),
+        ) { if (ActionsService.isRunning) ActionsService.showRecents() else showRecentsSetup() }
         items += Sheet.Item(getString(R.string.settings_edge), detail = yesNo(edgeEnabled), keepOpen = true) { detail ->
             edgeEnabled = !edgeEnabled
             prefs.edgeScroll = edgeEnabled

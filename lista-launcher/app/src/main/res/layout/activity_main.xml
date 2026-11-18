@@ -90,17 +90,12 @@
                 android:layout_marginEnd="24dp"
                 android:orientation="vertical" />
 
-            <ImageView
-                android:id="@+id/openDrawer"
-                android:layout_width="64dp"
-                android:layout_height="44dp"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="20dp"
-                android:alpha="0.45"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/open_apps"
-                android:scaleType="center"
-                android:src="@drawable/ic_chevron_up" />
+            <!-- Faixa de baixo: deslizar para cima começando aqui mostra os apps abertos. -->
+            <View
+                android:id="@+id/bottomZone"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="16dp" />
         </LinearLayout>
 
         <!-- Borda direita: tocar e arrastar aqui rola direto pela lista de apps. -->

@@ -26,6 +26,19 @@
         android:singleLine="true"
         android:textColor="@color/text_tertiary" />
 
+    <TextView
+        android:id="@+id/sheetMessage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/manrope_regular"
+        android:lineSpacingMultiplier="1.25"
+        android:paddingStart="28dp"
+        android:paddingEnd="28dp"
+        android:paddingBottom="12dp"
+        android:textColor="@color/text_secondary"
+        android:textSize="15sp"
+        android:visibility="gone" />
+
     <LinearLayout
         android:id="@+id/sheetItems"
         android:layout_width="match_parent"
