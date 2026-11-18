@@ -2,11 +2,11 @@
 
 Tela inicial em forma de lista, sem ícones: só o relógio, a data e os apps que você escolher.
 
-**APK pronto:** [`apk/Lista-Launcher-1.1.apk`](apk/Lista-Launcher-1.1.apk) (~140 KB, Android 8.0 ou mais novo)
+**APK pronto:** [`apk/Lista-Launcher-1.2.apk`](apk/Lista-Launcher-1.2.apk) (~140 KB, Android 8.0 ou mais novo)
 
-| Tela inicial | Arrastando na borda | Lista | Menu do app |
+| Tela inicial | Arrastando na tela | Arrastando na borda | Menu do app |
 |---|---|---|---|
-| ![](screenshots/home.png) | ![](screenshots/borda.png) | ![](screenshots/lista.png) | ![](screenshots/menu.png) |
+| ![](screenshots/home.png) | ![](screenshots/arrastando.png) | ![](screenshots/borda.png) | ![](screenshots/menu.png) |
 
 ## Como instalar
 
@@ -19,10 +19,10 @@ Tela inicial em forma de lista, sem ícones: só o relógio, a data e os apps qu
 
 | Onde | Gesto | O que faz |
 |---|---|---|
-| Tela inicial | deslizar para cima (ou tocar na setinha) | abre a lista de todos os apps |
-| Tela inicial | tocar e arrastar na borda direita (tracinho) | abre a lista e já rola junto com o dedo |
-| Tela inicial | deslizar para baixo | abre as notificações |
-| Tela inicial | tocar e segurar um espaço vazio | opções (borda direita, teclado, apps ocultos, papel de parede) |
+| Tela inicial | arrastar para cima em qualquer lugar | a lista aparece e segue o dedo (sobe e desce); ao soltar, continua deslizando |
+| Tela inicial | arrastar para baixo | abre a busca com o teclado (ou as notificações, se preferir, nas opções) |
+| Tela inicial | tocar e arrastar na borda direita (tracinho) | pula direto pelas letras, A a Z |
+| Tela inicial | tocar e segurar um espaço vazio | opções (borda direita, deslizar para baixo, teclado, apps ocultos, papel de parede) |
 | Tela inicial | tocar no relógio / na data | abre alarmes / agenda |
 | Tela inicial | tocar e segurar um app fixado | mover, renomear, remover, atalhos do app |
 | Lista | digitar na busca | filtra na hora (ignora acentos, aceita iniciais: "gm" → Google Maps) |

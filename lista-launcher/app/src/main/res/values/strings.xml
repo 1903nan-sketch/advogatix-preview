@@ -6,7 +6,7 @@
     <string name="search_web">Buscar “%1$s” na web</string>
     <string name="clear_search">Limpar busca</string>
     <string name="open_apps">Abrir lista de apps</string>
-    <string name="home_empty">Deslize para cima, ou arraste o dedo na borda direita, para ver todos os apps.\n\nToque e segure um app da lista para fixá-lo aqui.\n\nToque e segure a tela para ver as opções.</string>
+    <string name="home_empty">Arraste para cima para ver todos os apps, ou para baixo para buscar.\n\nToque e segure um app da lista para fixá-lo aqui.\n\nToque e segure a tela para ver as opções.</string>
     <string name="set_default_banner">Usar o Lista como tela inicial</string>
 
     <string name="menu_add_home">Fixar na tela inicial</string>
@@ -25,6 +25,9 @@
 
     <string name="settings_title">Lista</string>
     <string name="settings_hidden">Apps ocultos</string>
+    <string name="settings_swipe_down">Deslizar para baixo</string>
+    <string name="swipe_down_search">Buscar app</string>
+    <string name="swipe_down_notifications">Notificações</string>
     <string name="settings_keyboard">Teclado ao abrir a lista</string>
     <string name="settings_edge">Rolar pela borda direita</string>
     <string name="settings_wallpaper">Papel de parede</string>

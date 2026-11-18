@@ -39,6 +39,15 @@ class AlphabetScrubber(context: Context, attrs: AttributeSet?) : View(context, a
     private var step = 0f
     private var touchY = 0f
     private var activeIndex = -1
+
+    /** Letra do primeiro app visível na lista (destacada em repouso). */
+    var currentIndex = -1
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidate()
+            }
+        }
     private var wave = 0f
     private var waveAnimator: ValueAnimator? = null
 
@@ -92,8 +101,9 @@ class AlphabetScrubber(context: Context, attrs: AttributeSet?) : View(context, a
             val d = abs(cy - touchY)
             val g = if (wave > 0f && d < radius) ((cos(PI * d / radius) + 1.0) / 2.0).toFloat() * wave else 0f
             val active = i == activeIndex && wave > 0f
-            paint.textSize = baseSize * (1f + 1.15f * g)
-            paint.color = if (active) accentColor else blend(restColor, nearColor, g)
+            val current = i == currentIndex && wave == 0f
+            paint.textSize = baseSize * (1f + 1.15f * g) * (if (current) 1.25f else 1f)
+            paint.color = if (active || current) accentColor else blend(restColor, nearColor, g)
             paint.isFakeBoldText = active
             val y = cy - (paint.descent() + paint.ascent()) / 2f
             canvas.drawText(letters[i].toString(), railX - maxShift * g, y, paint)

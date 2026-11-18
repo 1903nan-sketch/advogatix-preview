@@ -23,6 +23,11 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_EDGE_SCROLL, true)
         set(value) = sp.edit().putBoolean(KEY_EDGE_SCROLL, value).apply()
 
+    /** Arrastar para baixo na tela inicial abre a busca (true) ou as notificações (false). */
+    var swipeDownSearch: Boolean
+        get() = sp.getBoolean(KEY_SWIPE_DOWN_SEARCH, true)
+        set(value) = sp.edit().putBoolean(KEY_SWIPE_DOWN_SEARCH, value).apply()
+
     var initialized: Boolean
         get() = sp.getBoolean(KEY_INITIALIZED, false)
         set(value) = sp.edit().putBoolean(KEY_INITIALIZED, value).apply()
@@ -42,5 +47,6 @@ class Prefs(context: Context) {
         const val KEY_AUTO_KEYBOARD = "auto_keyboard"
         const val KEY_INITIALIZED = "initialized"
         const val KEY_EDGE_SCROLL = "edge_scroll"
+        const val KEY_SWIPE_DOWN_SEARCH = "swipe_down_search"
     }
 }

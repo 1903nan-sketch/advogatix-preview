@@ -17,6 +17,8 @@ import android.view.MotionEvent
 import android.view.View
 import android.widget.EditText
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -163,7 +165,9 @@ class ScreenshotTest {
         // Lista aberta pelo topo.
         call(a, "closeDrawer", false)
         idle()
-        call(a, "openDrawer", false)
+        val animated = MainActivity::class.java.declaredClasses.first { it.simpleName == "OpenMode" }
+            .enumConstants!!.first { it.toString() == "ANIMATED" }
+        call(a, "openDrawer", animated)
         idle(1000)
         finishRowAnimation(a)
         capture(a, "5-lista.png")
@@ -185,5 +189,56 @@ class ScreenshotTest {
         call(a, "closeDrawer", false)
         call(a, "showSettings")
         capture(a, "8-opcoes.png", withDialog = true)
+    }
+
+    @Test fun arrastarNaTela() {
+        val a = start(listOf("Telefone", "WhatsApp", "Câmera", "Chrome"))
+        val decor = a.window.decorView
+        val h = decor.height.toFloat()
+        val x = decor.width * 0.5f
+        val drawer = a.findViewById<View>(R.id.drawer)
+        val list = a.findViewById<android.widget.ListView>(R.id.appList)
+
+        // Arrastar para cima no meio da tela (área vazia): a lista abre e segue o dedo.
+        var t = SystemClock.uptimeMillis()
+        touch(a, MotionEvent.ACTION_DOWN, x, h * 0.45f, t)
+        for (i in 1..12) {
+            idle(16)
+            touch(a, MotionEvent.ACTION_MOVE, x, h * (0.45f - 0.025f * i), t)
+        }
+        idle(16)
+        assertEquals(View.VISIBLE, drawer.visibility)
+        assertTrue("a lista deveria ter rolado", list.firstVisiblePosition >= 3)
+        capture(a, "9-arrastando-na-tela.png")
+        // E descer de novo, ainda com o dedo na tela, volta a lista.
+        for (i in 1..12) {
+            idle(16)
+            touch(a, MotionEvent.ACTION_MOVE, x, h * (0.15f + 0.025f * i), t)
+        }
+        idle(16)
+        assertEquals(0, list.firstVisiblePosition)
+        touch(a, MotionEvent.ACTION_UP, x, h * 0.45f, t)
+        idle(600)
+
+        // Arrastar para baixo: abre a lista com o campo de busca focado (teclado).
+        call(a, "closeDrawer", false)
+        idle()
+        t = SystemClock.uptimeMillis()
+        touch(a, MotionEvent.ACTION_DOWN, x, h * 0.35f, t)
+        for (i in 1..6) {
+            idle(16)
+            touch(a, MotionEvent.ACTION_MOVE, x, h * (0.35f + 0.02f * i), t)
+        }
+        touch(a, MotionEvent.ACTION_UP, x, h * 0.47f, t)
+        idle(600)
+        assertEquals(View.VISIBLE, drawer.visibility)
+        assertTrue("a busca deveria estar focada", a.findViewById<EditText>(R.id.search).hasFocus())
+        finishRowAnimation(a)
+        capture(a, "10-deslizar-para-baixo.png")
+
+        // Toque simples num app fixado continua sendo um clique (não vira arraste).
+        call(a, "closeDrawer", false)
+        idle()
+        assertEquals(View.INVISIBLE, drawer.visibility)
     }
 }

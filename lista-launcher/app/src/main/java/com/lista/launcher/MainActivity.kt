@@ -28,6 +28,7 @@ import android.view.GestureDetector
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.MotionEvent
+import android.view.VelocityTracker
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowInsets
@@ -52,6 +53,7 @@ import java.util.concurrent.Executors
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 class MainActivity : Activity() {
 
@@ -100,6 +102,20 @@ class MainActivity : Activity() {
     private var downOnScrubber = false
     /** Toque que começou na borda direita da tela inicial e está rolando a lista. */
     private var edgeScrubbing = false
+
+    /** Arraste vertical começando em qualquer ponto da tela inicial. */
+    private enum class HomeDrag { NONE, PENDING, SCROLLING, CONSUMED }
+    private enum class OpenMode { ANIMATED, INSTANT, SEARCH }
+
+    private var homeDrag = HomeDrag.NONE
+    private var downRawX = 0f
+    private var downRawY = 0f
+    private var lastRawY = 0f
+    private var scrollRemainder = 0f
+    private var velocity: VelocityTracker? = null
+    private var touchSlop = 0
+    private var minFling = 0
+    private var maxFling = 0
 
     private val homePad = Rect()
     private val drawerPad = Rect()
@@ -151,6 +167,11 @@ class MainActivity : Activity() {
         setupHome()
         setupDrawer()
         gestures = GestureDetector(this, SwipeListener())
+        ViewConfiguration.get(this).let {
+            touchSlop = it.scaledTouchSlop
+            minFling = it.scaledMinimumFlingVelocity
+            maxFling = it.scaledMaximumFlingVelocity
+        }
 
         launcherApps.registerCallback(launcherCallback, mainHandler)
         loadAppsAsync()
@@ -256,7 +277,7 @@ class MainActivity : Activity() {
             safeStart(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_CALENDAR))
         }
         defaultBanner.setOnClickListener { requestDefaultHome() }
-        findViewById<View>(R.id.openDrawer).setOnClickListener { openDrawer(fromEdge = false) }
+        findViewById<View>(R.id.openDrawer).setOnClickListener { openDrawer(OpenMode.ANIMATED) }
         home.setOnLongClickListener { showSettings(); true }
     }
 
@@ -287,7 +308,7 @@ class MainActivity : Activity() {
                 if (scrollState == AbsListView.OnScrollListener.SCROLL_STATE_TOUCH_SCROLL) hideKeyboard()
             }
 
-            override fun onScroll(view: AbsListView, first: Int, visible: Int, total: Int) = Unit
+            override fun onScroll(view: AbsListView, first: Int, visible: Int, total: Int) = updateCurrentLetter()
         })
 
         search.addTextChangedListener(object : TextWatcher {
@@ -376,7 +397,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun openDrawer(fromEdge: Boolean) {
+    private fun openDrawer(mode: OpenMode) {
         if (drawerOpen) return
         drawerOpen = true
         setBackCallback(true)
@@ -384,8 +405,9 @@ class MainActivity : Activity() {
         homeLayer.animate().cancel()
         drawer.visibility = View.VISIBLE
         drawer.alpha = 0f
-        if (fromEdge) {
+        if (mode == OpenMode.INSTANT) {
             // Aparece na hora: o dedo já está rolando a lista (sem animar as linhas).
+            // (a lista já volta ao topo ao fechar; posicionar aqui desfaria o início do arraste)
             appList.layoutAnimation = null
             drawer.translationY = 0f
             drawer.animate().alpha(1f).setDuration(120).start()
@@ -402,7 +424,7 @@ class MainActivity : Activity() {
             homeLayer.animate().alpha(0f).translationY(-dp(24).toFloat()).setDuration(180).withEndAction {
                 if (drawerOpen) homeLayer.visibility = View.INVISIBLE
             }.start()
-            if (prefs.autoKeyboard) showKeyboard()
+            if (mode == OpenMode.SEARCH || prefs.autoKeyboard) showKeyboard()
         }
     }
 
@@ -410,6 +432,7 @@ class MainActivity : Activity() {
         if (!drawerOpen) return
         drawerOpen = false
         edgeScrubbing = false
+        homeDrag = HomeDrag.NONE
         setBackCallback(false)
         hideKeyboard()
         if (search.text.isNotEmpty()) search.setText("")
@@ -422,9 +445,10 @@ class MainActivity : Activity() {
             homeLayer.animate().alpha(1f).translationY(0f).setDuration(220).start()
             drawer.animate().alpha(0f).translationY(dp(40).toFloat()).setDuration(180).withEndAction {
                 if (!drawerOpen) {
-                    // INVISIBLE (e não GONE): a lista continua medida, pronta para a borda direita.
+                    // INVISIBLE (e não GONE): a lista continua medida, pronta para o próximo arraste.
                     drawer.visibility = View.INVISIBLE
                     drawer.translationY = 0f
+                    resetListToTop()
                 }
             }.start()
         } else {
@@ -433,7 +457,13 @@ class MainActivity : Activity() {
             drawer.alpha = 0f
             drawer.translationY = 0f
             drawer.visibility = View.INVISIBLE
+            resetListToTop()
         }
+    }
+
+    private fun resetListToTop() {
+        appList.smoothScrollBy(0, 0) // interrompe um deslize que ainda esteja em andamento
+        appList.setSelection(0)
     }
 
     private fun setBackCallback(enabled: Boolean) {
@@ -462,28 +492,123 @@ class MainActivity : Activity() {
     // ------------------------------------------------------------------ gestos
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
+        val action = ev.actionMasked
+        if (action == MotionEvent.ACTION_DOWN) {
             edgeScrubbing = !drawerOpen && inEdgeZone(ev)
-            if (edgeScrubbing) openDrawer(fromEdge = true)
+            if (edgeScrubbing) openDrawer(OpenMode.INSTANT)
+            homeDrag = if (!drawerOpen) HomeDrag.PENDING else HomeDrag.NONE
+            downRawX = ev.rawX
+            downRawY = ev.rawY
             downListAtTop = !appList.canScrollVertically(-1)
             downOnScrubber = scrubber.isShown && isInside(scrubber, ev)
         }
         if (edgeScrubbing) {
             // Repassa o arraste da borda da tela inicial direto para a barra de letras.
             forwardToScrubber(ev)
-            val action = ev.actionMasked
             if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) edgeScrubbing = false
             return true
         }
+
+        when (homeDrag) {
+            HomeDrag.PENDING -> {
+                if (action == MotionEvent.ACTION_MOVE) {
+                    val dx = ev.rawX - downRawX
+                    val dy = ev.rawY - downRawY
+                    if (abs(dy) > touchSlop && abs(dy) > abs(dx) * 1.2f) {
+                        // Virou arraste vertical: tira o toque dos botões (sem clique acidental).
+                        cancelChildren(ev)
+                        if (dy < 0) startHomeScroll(ev) else onSwipeDown()
+                        return true
+                    }
+                    if (abs(dx) > touchSlop * 2 && abs(dx) > abs(dy)) homeDrag = HomeDrag.NONE
+                } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                    homeDrag = HomeDrag.NONE
+                }
+            }
+            HomeDrag.SCROLLING -> {
+                handleHomeScroll(ev)
+                return true
+            }
+            HomeDrag.CONSUMED -> {
+                if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) homeDrag = HomeDrag.NONE
+                return true
+            }
+            HomeDrag.NONE -> Unit
+        }
+
         val handled = gestures.onTouchEvent(ev)
-        if (handled && ev.actionMasked == MotionEvent.ACTION_UP) {
+        if (handled && action == MotionEvent.ACTION_UP) {
             // Gesto consumido: cancela o toque para não "clicar" num app sem querer.
-            val cancel = MotionEvent.obtain(ev).apply { action = MotionEvent.ACTION_CANCEL }
-            super.dispatchTouchEvent(cancel)
-            cancel.recycle()
+            cancelChildren(ev)
             return true
         }
         return super.dispatchTouchEvent(ev)
+    }
+
+    private fun cancelChildren(ev: MotionEvent) {
+        val cancel = MotionEvent.obtain(ev).apply { action = MotionEvent.ACTION_CANCEL }
+        super.dispatchTouchEvent(cancel)
+        cancel.recycle()
+    }
+
+    /** Arrastar para cima na tela inicial: a lista aparece e passa a seguir o dedo. */
+    private fun startHomeScroll(ev: MotionEvent) {
+        homeDrag = HomeDrag.SCROLLING
+        openDrawer(OpenMode.INSTANT)
+        lastRawY = ev.rawY
+        scrollRemainder = 0f
+        velocity?.recycle()
+        velocity = VelocityTracker.obtain().also { it.addMovement(ev) }
+    }
+
+    private fun handleHomeScroll(ev: MotionEvent) {
+        val tracker = velocity
+        tracker?.addMovement(ev)
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_MOVE -> {
+                // Dedo sobe -> lista avança (como rolar a própria lista).
+                scrollRemainder += lastRawY - ev.rawY
+                lastRawY = ev.rawY
+                val px = scrollRemainder.toInt()
+                if (px != 0) {
+                    appList.scrollListBy(px)
+                    scrollRemainder -= px
+                }
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                if (ev.actionMasked == MotionEvent.ACTION_UP && tracker != null) {
+                    // Ao soltar, continua deslizando com o embalo do dedo.
+                    tracker.computeCurrentVelocity(1000, maxFling.toFloat())
+                    val vy = tracker.yVelocity
+                    if (abs(vy) > minFling) appList.fling(-vy.roundToInt())
+                }
+                velocity?.recycle()
+                velocity = null
+                homeDrag = HomeDrag.NONE
+            }
+        }
+    }
+
+    /** Arrastar para baixo na tela inicial: busca com teclado (padrão) ou notificações. */
+    private fun onSwipeDown() {
+        homeDrag = HomeDrag.CONSUMED
+        if (prefs.swipeDownSearch) openDrawer(OpenMode.SEARCH) else expandNotifications()
+    }
+
+    /** Destaca na barra de letras a letra do primeiro app visível. */
+    private fun updateCurrentLetter() {
+        if (search.text.isNotEmpty() || sections.isEmpty()) {
+            scrubber.currentIndex = -1
+            return
+        }
+        val first = appList.firstVisiblePosition
+        var lo = 0
+        var hi = sections.size - 1
+        while (lo < hi) {
+            val mid = (lo + hi + 1) / 2
+            if (sections[mid].second <= first) lo = mid else hi = mid - 1
+        }
+        scrubber.currentIndex = lo
     }
 
     private fun inEdgeZone(ev: MotionEvent): Boolean {
@@ -516,11 +641,7 @@ class MainActivity : Activity() {
             val dx = e2.x - start.x
             if (abs(dy) < dp(56) || abs(dy) < abs(dx) * 1.3f || abs(velocityY) < minVelocity) return false
 
-            if (!drawerOpen) {
-                if (dy < 0) openDrawer(fromEdge = false) else expandNotifications()
-                return true
-            }
-            if (dy > 0 && downListAtTop && !downOnScrubber) {
+            if (drawerOpen && dy > 0 && downListAtTop && !downOnScrubber) {
                 if (imeVisible) hideKeyboard() else closeDrawer(animate = true)
                 return true
             }
@@ -803,6 +924,9 @@ class MainActivity : Activity() {
 
     private fun yesNo(value: Boolean) = getString(if (value) R.string.yes else R.string.no)
 
+    private fun swipeDownLabel() =
+        getString(if (prefs.swipeDownSearch) R.string.swipe_down_search else R.string.swipe_down_notifications)
+
     private fun showSettings() {
         val hiddenCount = prefs.hidden.count { byKey.containsKey(it) }
         val items = ArrayList<Sheet.Item>()
@@ -811,6 +935,10 @@ class MainActivity : Activity() {
             prefs.edgeScroll = edgeEnabled
             detail.text = yesNo(edgeEnabled)
             updateEdge()
+        }
+        items += Sheet.Item(getString(R.string.settings_swipe_down), detail = swipeDownLabel(), keepOpen = true) { detail ->
+            prefs.swipeDownSearch = !prefs.swipeDownSearch
+            detail.text = swipeDownLabel()
         }
         items += Sheet.Item(getString(R.string.settings_keyboard), detail = yesNo(prefs.autoKeyboard), keepOpen = true) { detail ->
             prefs.autoKeyboard = !prefs.autoKeyboard
