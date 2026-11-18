@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Lista</string>
+
+    <string name="search_hint">Buscar apps</string>
+    <string name="search_web">Buscar “%1$s” na web</string>
+    <string name="clear_search">Limpar busca</string>
+    <string name="open_apps">Abrir lista de apps</string>
+    <string name="home_empty">Deslize para cima para ver todos os apps.\n\nToque e segure um app da lista para fixá-lo aqui.\n\nToque e segure a tela para opções.</string>
+    <string name="set_default_banner">Toque para usar o Lista como tela inicial</string>
+
+    <string name="menu_add_home">Fixar na tela inicial</string>
+    <string name="menu_remove_home">Remover da tela inicial</string>
+    <string name="menu_move_up">Mover para cima</string>
+    <string name="menu_move_down">Mover para baixo</string>
+    <string name="menu_rename">Renomear</string>
+    <string name="menu_hide">Ocultar da lista</string>
+    <string name="menu_info">Informações do app</string>
+    <string name="menu_uninstall">Desinstalar</string>
+
+    <string name="rename_title">Renomear</string>
+    <string name="save">Salvar</string>
+    <string name="cancel">Cancelar</string>
+    <string name="restore">Nome original</string>
+
+    <string name="settings_title">Lista</string>
+    <string name="settings_hidden">Apps ocultos (%1$d)</string>
+    <string name="settings_keyboard_on">Abrir teclado ao abrir a lista: sim</string>
+    <string name="settings_keyboard_off">Abrir teclado ao abrir a lista: não</string>
+    <string name="settings_wallpaper">Trocar papel de parede</string>
+    <string name="settings_default">Definir como tela inicial padrão</string>
+    <string name="settings_android">Configurações do Android</string>
+    <string name="hidden_title">Desmarque para reexibir</string>
+    <string name="hidden_none">Nenhum app oculto</string>
+
+    <string name="toast_added">Fixado na tela inicial</string>
+    <string name="toast_max">Máximo de %1$d apps na tela inicial</string>
+    <string name="toast_hidden">App oculto. Para reexibir: segure a tela inicial → Apps ocultos</string>
+    <string name="toast_cant_open">Não foi possível abrir</string>
+</resources>
