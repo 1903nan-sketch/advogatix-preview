@@ -1,8 +1,9 @@
 # Lista — launcher minimalista para Android
 
-Tela inicial em forma de lista, sem ícones: só o relógio, a data e os apps que você escolher.
+Tela inicial em forma de lista: o relógio, a data e os apps que você escolher, com ícones pequenos
+(coloridos, discretos em preto e branco ou sem ícones, nas opções).
 
-**APK pronto:** [`apk/Lista-Launcher-1.4.apk`](apk/Lista-Launcher-1.4.apk) (~140 KB, Android 8.0 ou mais novo)
+**APK pronto:** [`apk/Lista-Launcher-1.5.apk`](apk/Lista-Launcher-1.5.apk) (~140 KB, Android 8.0 ou mais novo)
 
 | Tela inicial | Arrastando na tela | Arrastando na borda | Menu do app |
 |---|---|---|---|

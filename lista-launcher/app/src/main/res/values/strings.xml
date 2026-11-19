@@ -27,6 +27,10 @@
     <string name="settings_swipe_down">Deslizar para baixo</string>
     <string name="swipe_down_search">Buscar app</string>
     <string name="swipe_down_notifications">Notificações</string>
+    <string name="settings_icons">Ícones</string>
+    <string name="icons_color">Coloridos</string>
+    <string name="icons_mono">Discretos</string>
+    <string name="icons_none">Sem ícones</string>
     <string name="settings_keyboard">Teclado ao abrir a lista</string>
     <string name="settings_edge">Rolar pela borda direita</string>
     <string name="settings_wallpaper">Papel de parede</string>

@@ -2,6 +2,7 @@ package com.lista.launcher
 
 import android.app.Activity
 import android.app.Dialog
+import android.graphics.drawable.Drawable
 import android.os.Build
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -24,6 +25,7 @@ class Sheet(private val activity: Activity) {
         val danger: Boolean = false,
         /** Mantém o painel aberto (ex.: liga/desliga) e permite atualizar o texto à direita. */
         val keepOpen: Boolean = false,
+        val icon: Drawable? = null,
         val action: (detail: TextView) -> Unit,
     )
 
@@ -49,6 +51,10 @@ class Sheet(private val activity: Activity) {
             val label = row.findViewById<TextView>(R.id.label)
             val detail = row.findViewById<TextView>(R.id.detail)
             label.text = item.label
+            if (item.icon != null) {
+                label.setCompoundDrawablesRelative(item.icon, null, null, null)
+                label.compoundDrawablePadding = (16 * activity.resources.displayMetrics.density).toInt()
+            }
             if (item.danger) label.setTextColor(activity.getColor(R.color.danger))
             if (item.detail != null) {
                 detail.text = item.detail

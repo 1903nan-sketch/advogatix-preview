@@ -28,6 +28,10 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_SWIPE_DOWN_SEARCH, true)
         set(value) = sp.edit().putBoolean(KEY_SWIPE_DOWN_SEARCH, value).apply()
 
+    var iconStyle: IconCache.Style
+        get() = IconCache.Style.entries.getOrElse(sp.getInt(KEY_ICON_STYLE, 0)) { IconCache.Style.COLOR }
+        set(value) = sp.edit().putInt(KEY_ICON_STYLE, value.ordinal).apply()
+
     var initialized: Boolean
         get() = sp.getBoolean(KEY_INITIALIZED, false)
         set(value) = sp.edit().putBoolean(KEY_INITIALIZED, value).apply()
@@ -61,6 +65,7 @@ class Prefs(context: Context) {
         const val KEY_EDGE_SCROLL = "edge_scroll"
         const val KEY_SWIPE_DOWN_SEARCH = "swipe_down_search"
         const val KEY_HISTORY = "launch_history"
+        const val KEY_ICON_STYLE = "icon_style"
         const val MAX_HISTORY = 20
     }
 }

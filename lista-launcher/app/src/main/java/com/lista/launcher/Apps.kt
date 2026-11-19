@@ -3,6 +3,7 @@ package com.lista.launcher
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.ApplicationInfo
+import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
 import android.os.Process
 import android.os.UserHandle
@@ -19,6 +20,8 @@ class RawApp(
     val label: String,
     val isMainProfile: Boolean,
     val isSystem: Boolean,
+    /** Usado só para desenhar o ícone (nulo nos testes). */
+    val info: LauncherActivityInfo? = null,
 ) {
     val packageName: String get() = component.packageName
 }
@@ -63,6 +66,7 @@ class AppRepository(private val context: Context) {
                     label = label,
                     isMainProfile = isMain,
                     isSystem = flags and ApplicationInfo.FLAG_SYSTEM != 0,
+                    info = info,
                 )
             }
         }

@@ -67,14 +67,45 @@ class ScreenshotTest {
             .putBoolean("initialized", true)
             .commit()
         MainActivity.testApps = fakeApps()
+        MainActivity.testIcons = { raw -> FakeIcon(raw.label) }
         val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
         activity.findViewById<View>(R.id.defaultBanner).visibility = View.GONE
+        // Os ícones são desenhados numa thread separada.
+        Thread.sleep(300)
         idle()
         return activity
     }
 
     @After fun reset() {
         MainActivity.testApps = null
+        MainActivity.testIcons = null
+    }
+
+    /** Ícone de mentira: quadrado arredondado colorido com a inicial do app. */
+    private class FakeIcon(private val label: String) : android.graphics.drawable.Drawable() {
+        private val palette = intArrayOf(
+            0xFF2E7D32.toInt(), 0xFF1565C0.toInt(), 0xFFC62828.toInt(), 0xFF6A1B9A.toInt(),
+            0xFFEF6C00.toInt(), 0xFF00838F.toInt(), 0xFF37474F.toInt(), 0xFFAD1457.toInt(),
+        )
+        private val bg = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = palette[(label.hashCode() and 0x7fffffff) % palette.size] }
+        private val fg = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textAlign = Paint.Align.CENTER
+        }
+
+        override fun draw(canvas: Canvas) {
+            val b = bounds
+            val r = b.width() * 0.3f
+            canvas.drawRoundRect(b.left.toFloat(), b.top.toFloat(), b.right.toFloat(), b.bottom.toFloat(), r, r, bg)
+            fg.textSize = b.height() * 0.5f
+            val y = b.exactCenterY() - (fg.descent() + fg.ascent()) / 2f
+            canvas.drawText(label.take(1).uppercase(), b.exactCenterX(), y, fg)
+        }
+
+        override fun setAlpha(alpha: Int) = Unit
+        override fun setColorFilter(colorFilter: android.graphics.ColorFilter?) = Unit
+        @Deprecated("API antiga do Drawable")
+        override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
     }
 
     private fun wallpaper(c: Canvas, w: Int, h: Int, light: Boolean) {

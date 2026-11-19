@@ -66,6 +66,7 @@ class MainActivity : Activity() {
     private lateinit var launcherApps: LauncherApps
     private lateinit var imm: InputMethodManager
     private lateinit var sheet: Sheet
+    private lateinit var icons: IconCache
 
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -101,6 +102,7 @@ class MainActivity : Activity() {
     private var imeVisible = false
     private var backCallback: Any? = null
     private var edgeEnabled = true
+    private var iconStyle = IconCache.Style.COLOR
 
     private lateinit var gestures: GestureDetector
     private var downListAtTop = false
@@ -129,14 +131,19 @@ class MainActivity : Activity() {
     private val reloadRunnable = Runnable { loadAppsAsync() }
 
     private val launcherCallback = object : LauncherApps.Callback() {
-        override fun onPackageRemoved(packageName: String, user: UserHandle) = scheduleReload()
-        override fun onPackageAdded(packageName: String, user: UserHandle) = scheduleReload()
-        override fun onPackageChanged(packageName: String, user: UserHandle) = scheduleReload()
+        override fun onPackageRemoved(packageName: String, user: UserHandle) = changed(packageName)
+        override fun onPackageAdded(packageName: String, user: UserHandle) = changed(packageName)
+        override fun onPackageChanged(packageName: String, user: UserHandle) = changed(packageName)
         override fun onPackagesAvailable(packageNames: Array<out String>, user: UserHandle, replacing: Boolean) =
-            scheduleReload()
+            packageNames.forEach { changed(it) }
 
         override fun onPackagesUnavailable(packageNames: Array<out String>, user: UserHandle, replacing: Boolean) =
+            packageNames.forEach { changed(it) }
+
+        private fun changed(packageName: String) {
+            icons.drop(packageName) // o ícone pode ter mudado na atualização
             scheduleReload()
+        }
     }
 
     // ------------------------------------------------------------------ ciclo de vida
@@ -150,7 +157,9 @@ class MainActivity : Activity() {
         launcherApps = getSystemService(LauncherApps::class.java)!!
         imm = getSystemService(InputMethodManager::class.java)!!
         sheet = Sheet(this)
+        icons = IconCache(this)
         edgeEnabled = prefs.edgeScroll
+        iconStyle = prefs.iconStyle
 
         root = findViewById(R.id.root)
         homeLayer = findViewById(R.id.homeLayer)
@@ -295,6 +304,7 @@ class MainActivity : Activity() {
         for (app in favs) {
             val tv = inflater.inflate(R.layout.item_home_app, favoritesView, false) as TextView
             tv.text = app.label
+            tv.setCompoundDrawablesRelative(icons.drawable(app.key, dp(HOME_ICON_DP), iconStyle), null, null, null)
             tv.setOnClickListener { launch(app, it) }
             tv.setOnLongClickListener { showFavoriteMenu(app); true }
             favoritesView.addView(tv)
@@ -304,7 +314,8 @@ class MainActivity : Activity() {
     // ------------------------------------------------------------------ lista de apps
 
     private fun setupDrawer() {
-        adapter = AppListAdapter(LayoutInflater.from(this))
+        val listIconPx = dp(LIST_ICON_DP)
+        adapter = AppListAdapter(LayoutInflater.from(this)) { app -> icons.drawable(app.key, listIconPx, iconStyle) }
         appList.adapter = adapter
         rowsIn = LayoutAnimationController(AnimationUtils.loadAnimation(this, R.anim.row_in), 0.06f)
         appList.setOnItemClickListener { _, view, pos, _ -> launch(adapter.getItem(pos), view) }
@@ -626,7 +637,8 @@ class MainActivity : Activity() {
         val now = System.currentTimeMillis()
         val items = ArrayList<Sheet.Item>()
         for ((app, time) in recents) {
-            items += Sheet.Item(app.label, detail = timeAgo(now - time)) { launch(app, null) }
+            val icon = icons.drawable(app.key, dp(SHEET_ICON_DP), iconStyle)
+            items += Sheet.Item(app.label, detail = timeAgo(now - time), icon = icon) { launch(app, null) }
         }
         if (!full) {
             items += Sheet.Item(getString(R.string.recents_more), detail = getString(R.string.recents_more_hint), group = 1) {
@@ -813,6 +825,25 @@ class MainActivity : Activity() {
     private fun onAppsLoaded(raw: List<RawApp>) {
         rawApps = raw
         rebuild()
+        loadIconsAsync()
+    }
+
+    /** Desenha em segundo plano os ícones que ainda não estão no cache. */
+    private fun loadIconsAsync() {
+        if (iconStyle == IconCache.Style.NONE) return
+        val missing = icons.missing(rawApps)
+        if (missing.isEmpty()) return
+        executor.execute {
+            val rendered = HashMap<String, android.graphics.Bitmap>()
+            for (app in missing) icons.render(app)?.let { rendered[app.key] = it }
+            mainHandler.post {
+                if (!isDestroyed) {
+                    icons.putAll(rendered)
+                    adapter.notifyDataSetChanged()
+                    renderFavorites()
+                }
+            }
+        }
     }
 
     /** Recalcula a lista a partir de rawApps + preferências (renomear/ocultar não recarregam do sistema). */
@@ -1047,6 +1078,14 @@ class MainActivity : Activity() {
 
     private fun yesNo(value: Boolean) = getString(if (value) R.string.yes else R.string.no)
 
+    private fun iconStyleLabel() = getString(
+        when (iconStyle) {
+            IconCache.Style.COLOR -> R.string.icons_color
+            IconCache.Style.MONO -> R.string.icons_mono
+            IconCache.Style.NONE -> R.string.icons_none
+        },
+    )
+
     private fun swipeDownLabel() =
         getString(if (prefs.swipeDownSearch) R.string.swipe_down_search else R.string.swipe_down_notifications)
 
@@ -1066,6 +1105,15 @@ class MainActivity : Activity() {
         items += Sheet.Item(getString(R.string.settings_swipe_down), detail = swipeDownLabel(), keepOpen = true) { detail ->
             prefs.swipeDownSearch = !prefs.swipeDownSearch
             detail.text = swipeDownLabel()
+        }
+        items += Sheet.Item(getString(R.string.settings_icons), detail = iconStyleLabel(), keepOpen = true) { detail ->
+            val styles = IconCache.Style.entries
+            iconStyle = styles[(iconStyle.ordinal + 1) % styles.size]
+            prefs.iconStyle = iconStyle
+            detail.text = iconStyleLabel()
+            adapter.notifyDataSetChanged()
+            renderFavorites()
+            loadIconsAsync()
         }
         items += Sheet.Item(getString(R.string.settings_keyboard), detail = yesNo(prefs.autoKeyboard), keepOpen = true) { detail ->
             prefs.autoKeyboard = !prefs.autoKeyboard
@@ -1140,6 +1188,9 @@ class MainActivity : Activity() {
 
     companion object {
         private const val MAX_FAVORITES = 8
+        private const val HOME_ICON_DP = 28
+        private const val LIST_ICON_DP = 26
+        private const val SHEET_ICON_DP = 26
         private const val MAX_RECENTS = 8
         private const val RECENTS_WINDOW_MS = 3L * 24 * 60 * 60 * 1000
         private const val REQ_HOME_ROLE = 42
@@ -1149,5 +1200,8 @@ class MainActivity : Activity() {
 
         /** Só para testes: substitui a leitura dos apps instalados. */
         internal var testApps: List<RawApp>? = null
+
+        /** Só para testes: ícones falsos (os apps de teste não têm ícone de verdade). */
+        internal var testIcons: ((RawApp) -> android.graphics.drawable.Drawable?)? = null
     }
 }

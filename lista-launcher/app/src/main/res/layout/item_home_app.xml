@@ -5,6 +5,7 @@
     android:layout_height="wrap_content"
     android:layout_marginStart="-10dp"
     android:background="?android:attr/selectableItemBackground"
+    android:drawablePadding="16dp"
     android:ellipsize="end"
     android:fontFamily="@font/manrope_light"
     android:gravity="center_vertical"

@@ -1,12 +1,16 @@
 package com.lista.launcher
 
+import android.graphics.drawable.Drawable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
 import android.widget.TextView
 
-class AppListAdapter(private val inflater: LayoutInflater) : BaseAdapter() {
+class AppListAdapter(
+    private val inflater: LayoutInflater,
+    private val iconFor: (AppEntry) -> Drawable?,
+) : BaseAdapter() {
     private var items: List<AppEntry> = emptyList()
     private var showSections = true
     private var markFirst = false
@@ -41,6 +45,7 @@ class AppListAdapter(private val inflater: LayoutInflater) : BaseAdapter() {
         val holder = row.tag as Holder
         val app = items[position]
         holder.name.text = app.label
+        holder.name.setCompoundDrawablesRelative(iconFor(app), null, null, null)
         holder.letter.text = when {
             markFirst && position == 0 -> "→"
             showSections && (position == 0 || items[position - 1].section != app.section) -> app.section.toString()
