@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Deslizar para baixo na tela inicial abre a central de notificações. -->
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
@@ -7,6 +8,10 @@
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <!-- Tocar no relógio abre os alarmes do app Relógio. -->
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+    <!-- Opcional ("Acesso aos dados de uso"): lista em "Recentes" também os apps abertos fora do Lista. -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
 
     <queries>
         <intent>
@@ -51,19 +56,5 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <!-- Usado só para abrir a tela de apps abertos (recentes) do sistema. -->
-        <service
-            android:name=".ActionsService"
-            android:exported="true"
-            android:label="@string/a11y_label"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/accessibility_service" />
-        </service>
     </application>
 </manifest>

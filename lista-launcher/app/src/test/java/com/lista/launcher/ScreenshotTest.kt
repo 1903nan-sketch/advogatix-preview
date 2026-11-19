@@ -236,10 +236,17 @@ class ScreenshotTest {
         finishRowAnimation(a)
         capture(a, "10-deslizar-para-baixo.png")
 
-        // Deslizar para cima a partir da faixa de baixo: apps abertos (sem a permissão, explica como ativar).
+        // Deslizar para cima a partir da faixa de baixo: painel "Recentes" (histórico do Lista).
         call(a, "closeDrawer", false)
         idle()
         assertEquals(View.INVISIBLE, drawer.visibility)
+        val now = System.currentTimeMillis()
+        RuntimeEnvironment.getApplication().getSharedPreferences("lista", Context.MODE_PRIVATE).edit()
+            .putString(
+                "launch_history",
+                listOf("WhatsApp" to 1L, "Spotify" to 14L, "Nubank" to 190L, "Chrome" to 1600L)
+                    .joinToString("\n") { "${key(it.first)}|${now - it.second * 60_000}" },
+            ).commit()
         val zone = a.findViewById<View>(R.id.bottomZone)
         val loc = IntArray(2)
         zone.getLocationOnScreen(loc)
@@ -251,9 +258,15 @@ class ScreenshotTest {
             touch(a, MotionEvent.ACTION_MOVE, x, y0 - 30f * i, t)
         }
         touch(a, MotionEvent.ACTION_UP, x, y0 - 180f, t)
-        idle(600)
+        repeat(40) {
+            if (ShadowDialog.getLatestDialog()?.isShowing == true) return@repeat
+            Thread.sleep(25)
+            idle(25)
+        }
         assertEquals("a lista não deveria abrir", View.INVISIBLE, drawer.visibility)
-        assertTrue("deveria mostrar como ativar", ShadowDialog.getLatestDialog()?.isShowing == true)
-        capture(a, "11-apps-abertos.png", withDialog = true)
+        val dialog = ShadowDialog.getLatestDialog()
+        assertTrue("deveria mostrar os recentes", dialog?.isShowing == true)
+        assertEquals("Recentes", dialog!!.findViewById<android.widget.TextView>(R.id.sheetTitle).text.toString())
+        capture(a, "11-recentes.png", withDialog = true)
     }
 }

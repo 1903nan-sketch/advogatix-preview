@@ -32,6 +32,18 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_INITIALIZED, false)
         set(value) = sp.edit().putBoolean(KEY_INITIALIZED, value).apply()
 
+    /** Últimos apps abertos pelo Lista (chave do app -> horário), mais recente primeiro. */
+    fun launchHistory(): List<Pair<String, Long>> =
+        sp.getString(KEY_HISTORY, "").orEmpty().split('\n').mapNotNull { line ->
+            val i = line.lastIndexOf('|')
+            if (i <= 0) null else line.substring(i + 1).toLongOrNull()?.let { line.substring(0, i) to it }
+        }
+
+    fun recordLaunch(key: String, time: Long) {
+        val list = listOf(key to time) + launchHistory().filter { it.first != key }
+        sp.edit().putString(KEY_HISTORY, list.take(MAX_HISTORY).joinToString("\n") { "${it.first}|${it.second}" }).apply()
+    }
+
     fun customNames(): Map<String, String> =
         names.all.entries.mapNotNull { (k, v) -> (v as? String)?.let { k to it } }.toMap()
 
@@ -48,5 +60,7 @@ class Prefs(context: Context) {
         const val KEY_INITIALIZED = "initialized"
         const val KEY_EDGE_SCROLL = "edge_scroll"
         const val KEY_SWIPE_DOWN_SEARCH = "swipe_down_search"
+        const val KEY_HISTORY = "launch_history"
+        const val MAX_HISTORY = 20
     }
 }

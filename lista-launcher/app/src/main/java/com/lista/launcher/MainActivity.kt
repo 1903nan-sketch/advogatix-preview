@@ -3,7 +3,10 @@ package com.lista.launcher
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.ActivityOptions
+import android.app.AppOpsManager
 import android.app.SearchManager
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStatsManager
 import android.app.role.RoleManager
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -16,6 +19,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.Process
 import android.os.UserHandle
 import android.provider.AlarmClock
 import android.provider.MediaStore
@@ -604,24 +608,107 @@ class MainActivity : Activity() {
         return ev.rawY >= loc[1]
     }
 
-    /** Deslizar para cima a partir de baixo: tela de apps abertos do sistema. */
+    /** Deslizar para cima a partir de baixo: painel com os apps usados por último. */
     private fun openRecents() {
         homeDrag = HomeDrag.CONSUMED
-        if (!ActionsService.showRecents()) showRecentsSetup()
+        val full = hasUsageAccess()
+        executor.execute {
+            val recents = try {
+                recentApps(full)
+            } catch (_: Exception) {
+                emptyList()
+            }
+            mainHandler.post { if (!isDestroyed) showRecents(recents, full) }
+        }
     }
 
-    private fun showRecentsSetup() {
+    private fun showRecents(recents: List<Pair<AppEntry, Long>>, full: Boolean) {
+        val now = System.currentTimeMillis()
         val items = ArrayList<Sheet.Item>()
-        items += Sheet.Item(getString(R.string.recents_open_a11y), detail = getString(R.string.recents_open_a11y_hint)) {
-            safeStart(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        for ((app, time) in recents) {
+            items += Sheet.Item(app.label, detail = timeAgo(now - time)) { launch(app, null) }
         }
-        if (Build.VERSION.SDK_INT >= 33) {
-            // Apps instalados fora da loja precisam liberar a "configuração restrita" antes.
-            items += Sheet.Item(getString(R.string.recents_restricted), detail = getString(R.string.recents_restricted_hint)) {
-                safeStart(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+        if (!full) {
+            items += Sheet.Item(getString(R.string.recents_more), detail = getString(R.string.recents_more_hint), group = 1) {
+                openUsageAccessSettings()
             }
         }
-        sheet.show(getString(R.string.recents_title), items, message = getString(R.string.recents_message))
+        val message = if (recents.isEmpty()) getString(R.string.recents_empty) else null
+        sheet.show(getString(R.string.recents_title), items, message = message)
+    }
+
+    /**
+     * Apps usados por último. Com "Acesso aos dados de uso" ativo, vem do sistema (inclui apps
+     * abertos por notificação); sem ele, do histórico do próprio Lista.
+     */
+    private fun recentApps(full: Boolean): List<Pair<AppEntry, Long>> {
+        val lastUse = HashMap<String, Long>() // pacote -> horário
+        val viaLauncher = HashMap<String, AppEntry>() // pacote -> entrada exata aberta pelo Lista
+        for ((key, time) in prefs.launchHistory()) {
+            val app = resolveKey(key) ?: continue
+            if (time > (lastUse[app.packageName] ?: 0L)) lastUse[app.packageName] = time
+            viaLauncher.putIfAbsent(app.packageName, app)
+        }
+        val usm = if (full) getSystemService(UsageStatsManager::class.java) else null
+        if (usm != null) {
+            val end = System.currentTimeMillis()
+            val events = usm.queryEvents(end - RECENTS_WINDOW_MS, end)
+            val e = UsageEvents.Event()
+            while (events != null && events.hasNextEvent()) {
+                events.getNextEvent(e)
+                @Suppress("DEPRECATION")
+                if (e.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND && e.timeStamp > (lastUse[e.packageName] ?: 0L)) {
+                    lastUse[e.packageName] = e.timeStamp
+                }
+            }
+        }
+        val homes = packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
+            .map { it.activityInfo.packageName }.toSet()
+        return lastUse.entries
+            .filter { it.key != packageName && it.key !in homes }
+            .sortedByDescending { it.value }
+            .mapNotNull { (pkg, time) ->
+                val app = viaLauncher[pkg] ?: allApps.firstOrNull { it.packageName == pkg && it.raw.isMainProfile }
+                app?.let { it to time }
+            }
+            .take(MAX_RECENTS)
+    }
+
+    private fun hasUsageAccess(): Boolean = try {
+        val ops = getSystemService(AppOpsManager::class.java)!!
+        val mode = if (Build.VERSION.SDK_INT >= 29) {
+            ops.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), packageName)
+        } else {
+            @Suppress("DEPRECATION")
+            ops.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), packageName)
+        }
+        if (mode == AppOpsManager.MODE_DEFAULT) {
+            checkSelfPermission(android.Manifest.permission.PACKAGE_USAGE_STATS) == PackageManager.PERMISSION_GRANTED
+        } else {
+            mode == AppOpsManager.MODE_ALLOWED
+        }
+    } catch (_: Exception) {
+        false
+    }
+
+    private fun openUsageAccessSettings() {
+        toast(getString(R.string.recents_more_message))
+        try {
+            // Em muitos aparelhos já abre direto na chave do Lista.
+            startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, Uri.fromParts("package", packageName, null)))
+        } catch (_: Exception) {
+            safeStart(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+        }
+    }
+
+    private fun timeAgo(ms: Long): String {
+        val min = ms / 60_000
+        return when {
+            min < 1 -> getString(R.string.time_now)
+            min < 60 -> getString(R.string.time_min, min.toInt())
+            min < 24 * 60 -> getString(R.string.time_hours, (min / 60).toInt())
+            else -> getString(R.string.time_days, (min / (24 * 60)).toInt())
+        }
     }
 
     /** Arrastar para baixo na tela inicial: busca com teclado (padrão) ou notificações. */
@@ -802,6 +889,7 @@ class MainActivity : Activity() {
                 opts = ActivityOptions.makeClipRevealAnimation(view, 0, 0, view.width, view.height).toBundle()
             }
             launcherApps.startMainActivity(app.raw.component, app.raw.user, bounds, opts)
+            prefs.recordLaunch(app.key, System.currentTimeMillis())
         } catch (_: Exception) {
             toast(getString(R.string.toast_cant_open) + " " + app.label)
             scheduleReload()
@@ -967,8 +1055,8 @@ class MainActivity : Activity() {
         val items = ArrayList<Sheet.Item>()
         items += Sheet.Item(
             getString(R.string.settings_recents),
-            detail = getString(if (ActionsService.isRunning) R.string.recents_on else R.string.recents_off),
-        ) { if (ActionsService.isRunning) ActionsService.showRecents() else showRecentsSetup() }
+            detail = getString(if (hasUsageAccess()) R.string.recents_full else R.string.recents_basic),
+        ) { openUsageAccessSettings() }
         items += Sheet.Item(getString(R.string.settings_edge), detail = yesNo(edgeEnabled), keepOpen = true) { detail ->
             edgeEnabled = !edgeEnabled
             prefs.edgeScroll = edgeEnabled
@@ -1052,6 +1140,8 @@ class MainActivity : Activity() {
 
     companion object {
         private const val MAX_FAVORITES = 8
+        private const val MAX_RECENTS = 8
+        private const val RECENTS_WINDOW_MS = 3L * 24 * 60 * 60 * 1000
         private const val REQ_HOME_ROLE = 42
         private const val MIN_APPS_FOR_RAIL = 12
         /** Largura da faixa na borda direita que começa a rolagem. */

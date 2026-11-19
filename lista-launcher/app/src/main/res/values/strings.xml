@@ -5,7 +5,7 @@
     <string name="search_hint">Buscar apps</string>
     <string name="search_web">Buscar “%1$s” na web</string>
     <string name="clear_search">Limpar busca</string>
-    <string name="home_empty">Arraste para cima para ver todos os apps, ou para baixo para buscar. Deslize a partir de baixo para ver os apps abertos.\n\nToque e segure um app da lista para fixá-lo aqui.\n\nToque e segure a tela para ver as opções.</string>
+    <string name="home_empty">Arraste para cima para ver todos os apps, ou para baixo para buscar. Deslize a partir de baixo para ver os apps recentes.\n\nToque e segure um app da lista para fixá-lo aqui.\n\nToque e segure a tela para ver as opções.</string>
     <string name="set_default_banner">Usar o Lista como tela inicial</string>
 
     <string name="menu_add_home">Fixar na tela inicial</string>
@@ -39,17 +39,18 @@
     <string name="unhide">Reexibir</string>
     <string name="search_top_hint">→</string>
 
-    <string name="recents_title">Apps abertos</string>
-    <string name="recents_message">Para mostrar os apps abertos a partir da tela inicial, ative o Lista em Acessibilidade. A permissão é usada só para abrir a tela de apps recentes do sistema: o Lista não lê nada do que aparece na tela.\n\nSe a opção aparecer bloqueada como \"configuração restrita\", toque antes em \"Liberar configuração restrita\" e, na tela que abrir, toque nos três pontinhos no alto → Permitir configurações restritas.</string>
-    <string name="recents_open_a11y">Abrir Acessibilidade</string>
-    <string name="recents_open_a11y_hint">Apps instalados → Lista</string>
-    <string name="recents_restricted">Liberar configuração restrita</string>
-    <string name="recents_restricted_hint">três pontinhos</string>
-    <string name="settings_recents">Apps abertos (deslizar de baixo)</string>
-    <string name="recents_on">Ativo</string>
-    <string name="recents_off">Ativar</string>
-    <string name="a11y_label">Lista: apps abertos</string>
-    <string name="a11y_description">Permite que o Lista abra a tela de apps abertos (recentes) quando você desliza para cima a partir da parte de baixo da tela inicial. O Lista não lê o conteúdo da tela.</string>
+    <string name="recents_title">Recentes</string>
+    <string name="recents_empty">Os apps que você abrir vão aparecer aqui.</string>
+    <string name="recents_more">Incluir apps abertos fora do Lista</string>
+    <string name="recents_more_hint">Ativar</string>
+    <string name="recents_more_message">Para listar também os apps abertos por notificações e links, ative o Lista em \"Acesso aos dados de uso\" na tela que vai abrir.</string>
+    <string name="settings_recents">Recentes (deslizar de baixo)</string>
+    <string name="recents_full">Completo</string>
+    <string name="recents_basic">Só do Lista</string>
+    <string name="time_now">agora</string>
+    <string name="time_min">há %1$d min</string>
+    <string name="time_hours">há %1$d h</string>
+    <string name="time_days">há %1$d d</string>
 
     <string name="toast_added">Fixado na tela inicial</string>
     <string name="toast_max">Máximo de %1$d apps na tela inicial</string>

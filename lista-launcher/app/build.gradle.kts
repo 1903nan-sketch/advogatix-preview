@@ -13,8 +13,8 @@ android {
         applicationId = "com.lista.launcher"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.3"
+        versionCode = 5
+        versionName = "1.4"
     }
 
     // Chave de depuração versionada no repositório, para que qualquer build
